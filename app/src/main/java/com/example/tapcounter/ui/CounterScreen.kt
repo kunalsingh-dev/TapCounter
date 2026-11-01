@@ -1,5 +1,8 @@
 package com.example.tapcounter.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +26,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,10 +37,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.TapCounterApp
 import com.example.tapcounter.headset.HeadsetService
@@ -50,7 +58,22 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit) {
     val settings by app.headsetSettings.settings.collectAsStateWithLifecycle(initialValue = HeadsetSettings())
     val enable = rememberEnableHeadset()
     val tapAnywhere by app.counterStore.tapAnywhere.collectAsStateWithLifecycle()
+    val hideBars by app.counterStore.hideBarsInStealth.collectAsStateWithLifecycle()
     val haptic = LocalHapticFeedback.current
+    val view = LocalView.current
+
+    // Stealth: hide status bar (time/battery) and navigation bar. A swipe from the edge shows them briefly.
+    DisposableEffect(counter.stealth, hideBars) {
+        val window = view.context.findActivity()?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        if (counter.stealth && hideBars) {
+            controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller?.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller?.show(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
+    }
     var confirmReset by remember { mutableStateOf(false) }
 
     // Whole-screen touch: tap = +1, long press = leave stealth. Buttons/switches consume their own taps first.
@@ -127,6 +150,14 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit) {
             Text("Tap anywhere to count")
             Switch(checked = tapAnywhere, onCheckedChange = { app.counterStore.setTapAnywhere(it) })
         }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("Hide time bar in stealth")
+            Switch(checked = hideBars, onCheckedChange = { app.counterStore.setHideBarsInStealth(it) })
+        }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -189,4 +220,13 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit) {
             dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
         )
     }
+}
+
+private fun Context.findActivity(): Activity? {
+    var c: Context? = this
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
 }
