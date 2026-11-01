@@ -28,6 +28,15 @@ class CounterStore(context: Context) : CounterActions {
     )
     val state: StateFlow<CounterState> = _state.asStateFlow()
 
+    private val _tapAnywhere = MutableStateFlow(prefs.getBoolean(KEY_TAP_ANYWHERE, true))
+    /** When true, a tap anywhere on the counter screen (also in stealth) counts +1. */
+    val tapAnywhere: StateFlow<Boolean> = _tapAnywhere.asStateFlow()
+
+    fun setTapAnywhere(on: Boolean) {
+        _tapAnywhere.value = on
+        prefs.edit().putBoolean(KEY_TAP_ANYWHERE, on).apply()
+    }
+
     override fun increment() = change { it.copy(count = it.count + 1) }
     override fun decrement() = change { it.copy(count = (it.count - 1).coerceAtLeast(0)) }
     override fun toggleStealth() = change { it.copy(stealth = !it.stealth) }
@@ -45,5 +54,6 @@ class CounterStore(context: Context) : CounterActions {
     private companion object {
         const val KEY_COUNT = "count"
         const val KEY_STEALTH = "stealth"
+        const val KEY_TAP_ANYWHERE = "tap_anywhere"
     }
 }
