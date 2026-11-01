@@ -32,6 +32,15 @@ class CounterStore(context: Context) : CounterActions {
     /** When true, a tap anywhere on the counter screen (also in stealth) counts +1. */
     val tapAnywhere: StateFlow<Boolean> = _tapAnywhere.asStateFlow()
 
+    private val _hideBars = MutableStateFlow(prefs.getBoolean(KEY_HIDE_BARS, true))
+    /** When true, the status bar (time, battery) and navigation bar are hidden in stealth mode. */
+    val hideBarsInStealth: StateFlow<Boolean> = _hideBars.asStateFlow()
+
+    fun setHideBarsInStealth(on: Boolean) {
+        _hideBars.value = on
+        prefs.edit().putBoolean(KEY_HIDE_BARS, on).apply()
+    }
+
     fun setTapAnywhere(on: Boolean) {
         _tapAnywhere.value = on
         prefs.edit().putBoolean(KEY_TAP_ANYWHERE, on).apply()
@@ -55,5 +64,6 @@ class CounterStore(context: Context) : CounterActions {
         const val KEY_COUNT = "count"
         const val KEY_STEALTH = "stealth"
         const val KEY_TAP_ANYWHERE = "tap_anywhere"
+        const val KEY_HIDE_BARS = "hide_bars_in_stealth"
     }
 }
