@@ -30,7 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -47,17 +49,30 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit) {
     val status by app.headsetController.status.collectAsStateWithLifecycle()
     val settings by app.headsetSettings.settings.collectAsStateWithLifecycle(initialValue = HeadsetSettings())
     val enable = rememberEnableHeadset()
+    val tapAnywhere by app.counterStore.tapAnywhere.collectAsStateWithLifecycle()
+    val haptic = LocalHapticFeedback.current
     var confirmReset by remember { mutableStateOf(false) }
 
+    // Whole-screen touch: tap = +1, long press = leave stealth. Buttons/switches consume their own taps first.
+    val wholeScreen = Modifier.pointerInput(tapAnywhere, counter.stealth) {
+        detectTapGestures(
+            onTap = {
+                if (tapAnywhere) {
+                    app.counterStore.increment()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+            },
+            onLongPress = { if (counter.stealth) app.counterStore.setStealth(false) },
+        )
+    }
+
     if (counter.stealth) {
-        // Stealth: black screen, no number. Long-press anywhere to leave.
+        // Stealth: black screen, no number. Tap anywhere = +1, long-press anywhere = leave.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .pointerInput(Unit) {
-                    detectTapGestures(onLongPress = { app.counterStore.setStealth(false) })
-                },
+                .then(wholeScreen),
             contentAlignment = Alignment.Center,
         ) {
             Text("•", color = Color(0xFF222222), fontSize = 24.sp)
@@ -68,6 +83,7 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .then(wholeScreen)
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),
@@ -75,6 +91,10 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(counter.count.toString(), fontSize = 96.sp, style = MaterialTheme.typography.displayLarge)
+        Text(
+            if (tapAnywhere) "Tap anywhere on the screen to count +1" else "Tap + to count",
+            style = MaterialTheme.typography.bodySmall,
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             Button(
@@ -97,6 +117,15 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit) {
                 Text("Stealth  ")
                 Switch(checked = counter.stealth, onCheckedChange = { app.counterStore.setStealth(it) })
             }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("Tap anywhere to count")
+            Switch(checked = tapAnywhere, onCheckedChange = { app.counterStore.setTapAnywhere(it) })
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -140,7 +169,7 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit) {
 
         TextButton(onClick = onOpenSettings) { Text("Headset settings") }
         Text(
-            "Hold anywhere on the black screen to leave stealth.",
+            "In stealth the screen is black: tap anywhere to count, hold anywhere to leave.",
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
         )
