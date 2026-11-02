@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Headset buttons on Android: study note</title>
+<style>
+  :root { --bg:#ffffff; --fg:#1b1f24; --muted:#59636e; --card:#f4f6f8; --line:#d0d7de; --accent:#0969da; --warn:#9a6700; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --card:#161b22; --line:#30363d; --accent:#58a6ff; --warn:#d29922; }
+  }
+  body { background:var(--bg); color:var(--fg); font:16px/1.55 system-ui, sans-serif; margin:0; padding:16px; max-width:760px; margin-inline:auto; }
+  h1 { font-size:1.5rem; } h2 { font-size:1.2rem; margin-top:2rem; border-bottom:1px solid var(--line); padding-bottom:.3rem; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:12px 0; }
+  .warn { border-left:4px solid var(--warn); }
+  table { border-collapse:collapse; width:100%; } th,td { border:1px solid var(--line); padding:6px 8px; text-align:left; font-size:.92rem; }
+  .scroll { overflow-x:auto; }
+  code, pre { font-family: ui-monospace, monospace; font-size:.88rem; } pre { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px; overflow-x:auto; }
+  svg { width:100%; height:auto; } svg text { fill:var(--fg); font:12px system-ui, sans-serif; } svg .m { fill:var(--muted); }
+  small, .muted { color:var(--muted); }
+</style>
+</head>
+<body>
+<h1>Headset buttons on Android</h1>
+<p class="muted">How a press on your earbuds becomes a count, why it sometimes stops, and how the gesture timing works.</p>
+
+<h2>1. AVRCP: what the headset actually says</h2>
+<p><b>AVRCP</b> (Audio/Video Remote Control Profile) is the Bluetooth profile for transport control. The headset is the <i>controller</i>, the phone is the <i>target</i>. A button press becomes a small <i>pass-through</i> command (play, pause, forward, backward, stop). The classic call button comes over <b>HFP/HSP</b> instead and arrives as the "hook" key.</p>
+<p>The Android Bluetooth stack converts these commands into ordinary media <code>KeyEvent</code>s and hands them to the system's media-key dispatcher. It does not send them to apps directly.</p>
+<div class="card warn"><b>Volume is different.</b> With AVRCP <i>absolute volume</i> (1.4+), the headset changes its own gain and only <i>informs</i> the phone. On most Bluetooth headsets no volume key event exists to capture. Volume buttons cannot be used for counting.</div>
+
+<h2>2. MediaSession: who receives the key</h2>
+<p>The system dispatcher gives a media key to one <b>active MediaSession</b>: in practice the one that most recently became active or reported <code>STATE_PLAYING</code>. Apps don't "listen globally". They hold a session. Our <code>HeadsetSessionManager</code> creates a <code>MediaSessionCompat</code>, sets a <code>PlaybackState</code> of PLAYING, and calls <code>isActive = true</code>. Keys then arrive in <code>onMediaButtonEvent(Intent)</code>.</p>
+<p>The session lives in a <b>foreground service</b> (type <code>connectedDevice</code>) so the process survives screen-off and backgrounding.</p>
+
+<h2>3. KeyEvent codes</h2>
+<div class="scroll"><table>
+<tr><th>Key</th><th>Code</th><th>Typical source</th></tr>
+<tr><td>KEYCODE_HEADSETHOOK</td><td>79</td><td>Wired/HFP call button</td></tr>
+<tr><td>KEYCODE_MEDIA_PLAY_PAUSE</td><td>85</td><td>Most earbuds, centre button</td></tr>
+<tr><td>KEYCODE_MEDIA_STOP</td><td>86</td><td>Some headsets</td></tr>
+<tr><td>KEYCODE_MEDIA_NEXT</td><td>87</td><td>Double tap on many earbuds</td></tr>
+<tr><td>KEYCODE_MEDIA_PREVIOUS</td><td>88</td><td>Triple tap on many earbuds</td></tr>
+<tr><td>KEYCODE_MEDIA_PLAY / PAUSE</td><td>126 / 127</td><td>Headsets with separate play and pause</td></tr>
+</table></div>
+<p>Each press is <code>ACTION_DOWN</code> then <code>ACTION_UP</code>. Holding may add repeated DOWNs with <code>repeatCount &gt; 0</code>. Some headsets send a duplicate DOWN, which is why we debounce. Many earbuds turn <i>their own</i> double/triple tap into NEXT/PREVIOUS before sending anything. That is why Learn mode shows what your headset really sends.</p>
+
+<h2>4. Audio focus (and why we don't use it)</h2>
+<p><b>Audio focus</b> is the polite protocol for who may play sound now. It is <i>separate</i> from media-key routing, but the two are tied together in practice because the app that last played audio tends to win the keys. If we requested focus, other players would pause or duck. So the keep-alive track plays <b>without</b> requesting focus: your music is untouched. The price: a music app that starts later can still become the preferred session.</p>
+
+<h2>5. Why events stop arriving</h2>
+<ul>
+<li>Another app's session became active/playing more recently (music, video, a call).</li>
+<li>Our session was released or deactivated, or the process was killed by a battery saver.</li>
+<li>Nothing is playing and the session looks idle, so some systems deprioritise it. Hence the keep-alive loop.</li>
+<li>A phone call: HFP takes the hook key for call control.</li>
+<li>The headset reconnected and routing was rebuilt. We re-create the session ≈ 1.5 s after <code>ACTION_ACL_CONNECTED</code>.</li>
+<li>The headset itself keeps the gesture (assistant, noise control) and never sends it.</li>
+</ul>
+<p>Recovery tools: <b>Re-take control</b> (new session + restart keep-alive), <code>ACTION_AUDIO_BECOMING_NOISY</code> handling (pause keep-alive when the headset vanishes), and ACL connect/disconnect receivers.</p>
+
+<h2>6. Gesture timing algorithm (C++ core)</h2>
+<p>The engine never reads a clock and never sleeps. Kotlin passes timestamps and calls <code>tick(now)</code> at <code>nextDeadlineMs()</code>.</p>
+<svg viewBox="0 0 700 300" role="img" aria-label="Timeline of single, double and long press detection">
+  <g stroke="var(--line)" stroke-width="1"><line x1="20" y1="70" x2="680" y2="70"/><line x1="20" y1="160" x2="680" y2="160"/><line x1="20" y1="250" x2="680" y2="250"/></g>
+  <text x="20" y="22" font-weight="bold">Single click</text>
+  <rect x="60" y="40" width="40" height="24" rx="3" fill="#0969da"/><text x="64" y="57" style="fill:#fff">DOWN→UP</text>
+  <rect x="100" y="50" width="200" height="8" fill="none" stroke="var(--accent)" stroke-dasharray="4 3"/><text class="m" x="110" y="42">multi-click window (350 ms)</text>
+  <text x="305" y="62">▶ emit SINGLE at UP + window</text>
+
+  <text x="20" y="112" font-weight="bold">Double click</text>
+  <rect x="60" y="130" width="34" height="24" rx="3" fill="#0969da"/>
+  <rect x="150" y="130" width="34" height="24" rx="3" fill="#0969da"/>
+  <rect x="94" y="140" width="56" height="8" fill="none" stroke="var(--accent)" stroke-dasharray="4 3"/>
+  <rect x="184" y="140" width="200" height="8" fill="none" stroke="var(--accent)" stroke-dasharray="4 3"/>
+  <text x="390" y="152">▶ DOUBLE after 2nd window · a 3rd tap emits TRIPLE immediately</text>
+
+  <text x="20" y="202" font-weight="bold">Long press</text>
+  <rect x="60" y="220" width="300" height="24" rx="3" fill="#9a6700"/><text x="66" y="237" style="fill:#fff">DOWN … held (repeat DOWNs ignored)</text>
+  <line x1="260" y1="212" x2="260" y2="256" stroke="var(--warn)" stroke-width="2"/>
+  <text x="268" y="214" class="m">hold ≥ 600 ms → LONG_PRESS fires</text>
+  <text x="368" y="237">release: ignored, not a tap</text>
+</svg>
+<pre>onKey(key, down, t):
+  tick(t)                          # resolve anything already expired
+  if down:
+      if key already down:            ignore            # auto-repeat
+      if t - lastDown[key] &lt; debounce: ignore            # duplicate DOWN
+      state = DOWN; downTime = t
+  else:
+      if not down: ignore                                # orphan UP
+      if longFired: clear; return                        # release after long press
+      taps++; lastUp = t
+      if taps == 3: emit TRIPLE; taps = 0
+
+tick(now):                          # per key
+  if down and not longFired and now - downTime &gt;= longPress:
+      flush pending taps first; emit LONG_PRESS; longFired = true
+  elif up and taps &gt; 0 and now - lastUp &gt;= multiTapWindow:
+      emit SINGLE/DOUBLE by taps; taps = 0
+
+nextDeadline = min( downTime + longPress   if held,
+                    lastUp + multiTapWindow if taps pending )</pre>
+<p><b>Debounce</b> applies to DOWN events only: a duplicate DOWN is dropped, and its UP is then ignored because no DOWN was accepted. Each key has its own state, so two buttons never interfere.</p>
+<p class="muted">Consequence: a single click is reported only after the multi-click window. That is the unavoidable price of telling single from double.</p>
+
+<h2>7. Reliable vs unreliable</h2>
+<div class="card"><b>Reliable:</b> Play/Pause (or hook), Next, Previous, usually Stop. <b>Unreliable:</b> long press, anything the headset handles internally, volume up/down, any gesture while another app owns the session.</div>
+</body>
+</html>

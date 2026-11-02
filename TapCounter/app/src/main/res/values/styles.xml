@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.TapCounter" parent="android:Theme.DeviceDefault.NoActionBar" />
+</resources>
