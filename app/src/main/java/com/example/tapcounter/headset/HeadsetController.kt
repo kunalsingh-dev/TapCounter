@@ -16,11 +16,13 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Hub between the MediaSession (raw key events) and the app (counter actions).
- * All entry points run on the main thread (MediaSession callbacks are delivered there).
+ * Hub between every input (screen taps, headset keys, phone volume keys) and the counter.
+ * All entry points run on the main thread.
  *
- * key event -> [learn mode? capture] -> [hardware lock? swallow] -> C++ engine
- *           -> gesture -> settings lookup -> Action -> CounterActions + feedback
+ * headset key -> [learn mode? capture] -> [hardware lock? swallow] -> C++ engine
+ *             -> gesture -> settings lookup -> Action -> CounterActions + feedback
+ * volume key  -> [lock?] -> (foreground: repeatCount==0 only) | (background: VolumeKeyFilter) -> +1
+ * screen tap  -> +1
  */
 class HeadsetController(
     context: Context,
@@ -31,6 +33,7 @@ class HeadsetController(
     private val handler = Handler(Looper.getMainLooper())
     private val engine = NativeGestureEngine()
     private val feedback = Feedback(context.applicationContext)
+    private val volumeFilter = VolumeKeyFilter()
 
     @Volatile
     private var settings = HeadsetSettings()
@@ -46,16 +49,52 @@ class HeadsetController(
         scheduleTick()
     }
 
+    private val volumeRunnable = Runnable {
+        commitCounts(volumeFilter.poll(SystemClock.uptimeMillis()))
+        scheduleVolume()
+    }
+
     init {
         scope.launch {
             repo.settings.collect { s ->
                 settings = s
                 engine.configure(s.gestureConfig)
+                applyMaxTaps(s)
             }
         }
     }
 
     fun updateStatus(transform: (HeadsetStatus) -> HeadsetStatus) = _status.update(transform)
+
+    // ---- Screen --------------------------------------------------------------------
+
+    /** One counted tap on the screen. */
+    fun countTap() = countOne()
+
+    /** The two-finger-hold combination: toggle stealth with a distinct double buzz. */
+    fun stealthComboFromScreen() {
+        counter.toggleStealth()
+        feedback.stealthForceOn(settings.vibrationEnabled, false)
+    }
+
+    // ---- Phone volume keys ---------------------------------------------------------
+
+    /** Foreground path (Activity.onKeyDown/onKeyUp). Returns true if the key was consumed. */
+    fun onVolumeKey(event: KeyEvent): Boolean {
+        val s = settings
+        if (!s.volumeKeysCount || s.hardwareLock) return false
+        // A held key arrives with repeatCount > 0: swallow it, count only the first press.
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) countOne()
+        return true
+    }
+
+    /** Background path (MediaSession volume provider). Direction is +1 / -1 / 0. */
+    fun onVolumeAdjust(direction: Int) {
+        val s = settings
+        if (direction == 0 || !s.volumeKeysCount || s.hardwareLock) return
+        commitCounts(volumeFilter.onEvent(SystemClock.uptimeMillis()))
+        scheduleVolume()
+    }
 
     // ---- Learn mode ----------------------------------------------------------------
 
@@ -68,7 +107,7 @@ class HeadsetController(
         _learn.value = LearnState(active = false, captured = null)
     }
 
-    // ---- Key path ------------------------------------------------------------------
+    // ---- Headset key path ----------------------------------------------------------
 
     /** Called from MediaSessionCompat.Callback.onMediaButtonEvent. Returns true if consumed. */
     fun onKeyEvent(event: KeyEvent): Boolean {
@@ -76,22 +115,17 @@ class HeadsetController(
         val down = when (event.action) {
             KeyEvent.ACTION_DOWN -> true
             KeyEvent.ACTION_UP -> false
-            else -> return true // ACTION_MULTIPLE etc.: consume, ignore
+            else -> return true
         }
         val now = SystemClock.uptimeMillis()
 
         if (down) {
-            // Receiving a key proves the session is currently ours.
             _status.update {
-                it.copy(
-                    lastKeyName = HeadsetKeys.name(code),
-                    lastKeyAtMs = now,
-                    possibleConflict = false,
-                )
+                it.copy(lastKeyName = HeadsetKeys.name(code), lastKeyAtMs = now, possibleConflict = false)
             }
         }
 
-        // Learn mode captures ANY key (even unknown ones) and bypasses the hardware lock.
+        // Learn mode captures ANY key from ANY Bluetooth device and bypasses the hardware lock.
         if (_learn.value.active) {
             if (down && event.repeatCount == 0) {
                 _learn.value = LearnState(active = false, captured = CapturedKey(code))
@@ -102,7 +136,6 @@ class HeadsetController(
 
         val known = code in HeadsetKeys.supported || settings.bindings.keys.any { it.first == code }
         if (!known) return false
-
         if (settings.hardwareLock) return true // consumed, deliberately ignored
 
         dispatch(engine.onKey(code, down, now))
@@ -112,22 +145,61 @@ class HeadsetController(
 
     fun resetGestureState() {
         handler.removeCallbacks(tickRunnable)
+        handler.removeCallbacks(volumeRunnable)
         engine.reset()
+        volumeFilter.reset()
     }
 
     fun release() {
         handler.removeCallbacks(tickRunnable)
+        handler.removeCallbacks(volumeRunnable)
     }
 
     // ---- internals -----------------------------------------------------------------
+
+    /**
+     * A key with no double/triple binding is told maxTaps = 1, so its single click is counted
+     * the instant it is released instead of after the multi-click window.
+     */
+    private fun applyMaxTaps(s: HeadsetSettings) {
+        val keys = HeadsetKeys.supported + s.bindings.keys.map { it.first }
+        for (key in keys) {
+            val maxTaps = when {
+                isBound(s.bindings[key to Gesture.TRIPLE]) -> 3
+                isBound(s.bindings[key to Gesture.DOUBLE]) -> 2
+                else -> 1
+            }
+            engine.setMaxTaps(key, maxTaps)
+        }
+    }
+
+    private fun isBound(a: Action?): Boolean = a != null && a != Action.NONE
 
     private fun scheduleTick() {
         handler.removeCallbacks(tickRunnable)
         val deadline = engine.nextDeadlineMs()
         if (deadline >= 0) {
-            val wait = (deadline - SystemClock.uptimeMillis()).coerceAtLeast(0L) + 1
-            handler.postDelayed(tickRunnable, wait)
+            handler.postDelayed(tickRunnable, (deadline - SystemClock.uptimeMillis()).coerceAtLeast(0L) + 1)
         }
+    }
+
+    private fun scheduleVolume() {
+        handler.removeCallbacks(volumeRunnable)
+        val deadline = volumeFilter.nextDeadlineMs()
+        if (deadline >= 0) {
+            handler.postDelayed(volumeRunnable, (deadline - SystemClock.uptimeMillis()).coerceAtLeast(0L) + 1)
+        }
+    }
+
+    private fun commitCounts(n: Int) {
+        repeat(n) { countOne() }
+    }
+
+    private fun countOne() {
+        val s = settings
+        val completedMala = counter.increment()
+        if (completedMala && s.malaVibration) feedback.mala(true, s.confirmationTick)
+        else feedback.count(s.vibrationEnabled, s.confirmationTick)
     }
 
     private fun dispatch(events: List<GestureEvent>) {
@@ -137,11 +209,11 @@ class HeadsetController(
     private fun execute(action: Action) {
         val s = settings
         when (action) {
-            Action.INCREMENT -> { counter.increment(); feedback.count(s.vibrationEnabled, s.confirmationTick) }
-            Action.DECREMENT -> { counter.decrement(); feedback.count(s.vibrationEnabled, s.confirmationTick) }
-            Action.STEALTH_TOGGLE -> { counter.toggleStealth(); feedback.count(s.vibrationEnabled, s.confirmationTick) }
+            Action.INCREMENT -> countOne()
+            Action.STEALTH_TOGGLE -> { counter.toggleStealth(); feedback.stealthForceOn(s.vibrationEnabled, s.confirmationTick) }
             Action.STEALTH_FORCE_ON -> { counter.forceStealthOn(); feedback.stealthForceOn(s.vibrationEnabled, s.confirmationTick) }
             Action.NONE -> Unit
+            Action.DECREMENT -> Unit // retired
             Action.RESET -> Unit // unreachable by construction (BindingRules); CounterActions has no reset
         }
     }

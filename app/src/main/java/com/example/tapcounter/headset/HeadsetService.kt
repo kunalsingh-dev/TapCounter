@@ -112,7 +112,7 @@ class HeadsetService : Service() {
         )
         initialised = true
 
-        sessionManager.start()
+        sessionManager.start(captureVolume())
         conflictDetector.start()
         registerReceivers()
         readInitialBluetoothState()
@@ -120,9 +120,12 @@ class HeadsetService : Service() {
 
         scope.launch {
             repo.settings.collect { s ->
+                val before = captureVolume()
                 latest = s
                 applyKeepAlive()
                 refreshNotification()
+                // Volume capture on/off (or lock toggled) changes the session type: rebuild it.
+                if (captureVolume() != before) sessionManager.restart(captureVolume())
             }
         }
     }
@@ -165,11 +168,14 @@ class HeadsetService : Service() {
         if (!initialised) return
         routePaused = false
         keepAlive.stop()
-        sessionManager.restart()
+        sessionManager.restart(captureVolume())
         applyKeepAlive()
         controller.resetGestureState()
         controller.updateStatus { it.copy(possibleConflict = false) }
     }
+
+    /** Own the phone volume keys only when enabled and not hardware-locked (locked = normal volume). */
+    private fun captureVolume(): Boolean = latest.volumeKeysCount && !latest.hardwareLock
 
     private fun applyKeepAlive() {
         if (!initialised) return

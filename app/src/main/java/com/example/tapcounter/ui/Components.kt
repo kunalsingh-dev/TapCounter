@@ -5,19 +5,18 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.example.tapcounter.headset.Action
@@ -26,15 +25,18 @@ import com.example.tapcounter.headset.HeadsetService
 
 @Composable
 fun TapCounterTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme(),
-        content = content,
-    )
+    // Always dark: the counter screen has a dark top bar and a coloured gradient.
+    MaterialTheme(colorScheme = darkColorScheme(), content = content)
 }
+
+/** Choices for the god-name text colour (index is stored). */
+val GodColors = listOf(
+    Color(0xFF000000), Color(0xFFFF3B30), Color(0xFFFFFFFF), Color(0xFFFFC107), Color(0xFF1E3A8A),
+)
 
 fun Action.label(): String = when (this) {
     Action.INCREMENT -> "Count +1"
-    Action.DECREMENT -> "Count −1"
+    Action.DECREMENT -> "(retired)"
     Action.STEALTH_TOGGLE -> "Toggle stealth"
     Action.STEALTH_FORCE_ON -> "Stealth ON (force)"
     Action.NONE -> "Do nothing"

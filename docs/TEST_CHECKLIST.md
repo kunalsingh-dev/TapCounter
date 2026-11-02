@@ -43,3 +43,15 @@ pair a headset, run Learn mode once and confirm the key name shown.
 
 ## G. Record for each headset
 Model, key names + codes from Learn mode, which gestures worked, whether it needed keep-alive.
+
+## H. v2 additions
+- [ ] Single headset click counts with no noticeable delay; 10 quick clicks = 10 counts.
+- [ ] Hold Play/Pause 1.2 s: stealth toggles (double buzz); releasing adds no count.
+- [ ] Screen: two fingers held 1 s toggles stealth; a single finger held > 0.5 s does not count; normal tap counts.
+- [ ] Stealth: screen at lowest brightness, status bar hidden; leaving stealth restores brightness and bars.
+- [ ] Volume keys, app open: each fresh press = +1; holding the key = exactly one count.
+- [ ] Volume keys, screen OFF (service running): each fresh press = +1; holding = one count. (Device dependent.)
+- [ ] Turn "Phone volume buttons count" off: volume keys change volume again. Hardware lock on: same.
+- [ ] Reach 108: ring resets, "Today's Mala Count" +1, long triple buzz.
+- [ ] History shows today's total and hourly breakdown; survives app restart; new day starts a new entry.
+- [ ] No − button, no Reset button on the main screen.

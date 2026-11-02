@@ -157,7 +157,56 @@ static void resetClearsState() {
     CHECK(e.tick(5000).empty());
 }
 
+static void maxTapsOneIsInstant() {
+    GestureEngine e;
+    e.setMaxTaps(PLAY, 1);
+    e.onKey(PLAY, true, 1000);
+    V r = e.onKey(PLAY, false, 1050);  // no waiting at all
+    CHECK(r.size() == 1 && r[0].gesture == Gesture::Single);
+    CHECK(e.nextDeadlineMs() == -1);
+    // rapid counting: every click counts at once
+    int n = 0;
+    for (int i = 0; i < 10; i++) {
+        e.onKey(PLAY, true, 2000 + i * 120);
+        n += (int)e.onKey(PLAY, false, 2000 + i * 120 + 40).size();
+    }
+    CHECK(n == 10);
+}
+
+static void maxTapsTwoGivesInstantDouble() {
+    GestureEngine e;
+    e.setMaxTaps(PLAY, 2);
+    e.onKey(PLAY, true, 0); e.onKey(PLAY, false, 40);
+    CHECK(e.nextDeadlineMs() == 390);  // single still waits for a possible 2nd tap
+    e.onKey(PLAY, true, 150);
+    V r = e.onKey(PLAY, false, 190);
+    CHECK(r.size() == 1 && r[0].gesture == Gesture::Double);
+}
+
+static void maxTapsIsPerKeyAndClamped() {
+    GestureEngine e;
+    e.setMaxTaps(PLAY, 1);
+    e.setMaxTaps(NEXT, 99);  // clamped to 3
+    e.onKey(NEXT, true, 0); e.onKey(NEXT, false, 40);
+    CHECK(e.nextDeadlineMs() == 390);
+    e.setMaxTaps(NEXT, -5);  // clamped to 1
+    e.onKey(NEXT, true, 1000);
+    V r = e.onKey(NEXT, false, 1030);
+    CHECK(!r.empty());
+}
+
+static void longPressStillWorksWithMaxTapsOne() {
+    GestureEngine e;
+    e.setMaxTaps(PLAY, 1);
+    e.onKey(PLAY, true, 0);
+    V r = e.tick(600);
+    CHECK(r.size() == 1 && r[0].gesture == Gesture::LongPress);
+    CHECK(e.onKey(PLAY, false, 900).empty());
+}
+
 int main() {
+    maxTapsOneIsInstant(); maxTapsTwoGivesInstantDouble(); maxTapsIsPerKeyAndClamped();
+    longPressStillWorksWithMaxTapsOne();
     singleClick(); doubleClick(); tripleClickIsImmediate(); longPressByTick();
     longPressDetectedOnRelease(); autoRepeatDownDoesNotRetrigger(); debounceDuplicateEvents();
     debounceBoundary(); debounceConfigurable(); keysAreIndependent(); lateNextDownFlushesPending();

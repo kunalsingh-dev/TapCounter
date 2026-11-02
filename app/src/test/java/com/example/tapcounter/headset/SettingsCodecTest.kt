@@ -18,9 +18,9 @@ class SettingsCodecTest {
 
     @Test fun decodeDropsResetAndGarbage() {
         val decoded = SettingsCodec.decode(
-            setOf("85:SINGLE=RESET", "85:DOUBLE=DECREMENT", "junk", "85:SINGLE", "=INCREMENT", "85:X=INCREMENT", "85:TRIPLE="),
+            setOf("85:SINGLE=RESET", "85:DOUBLE=STEALTH_TOGGLE", "junk", "85:SINGLE", "=INCREMENT", "85:X=INCREMENT", "85:TRIPLE="),
         )
-        assertEquals(mapOf((85 to Gesture.DOUBLE) to Action.DECREMENT), decoded)
+        assertEquals(mapOf((85 to Gesture.DOUBLE) to Action.STEALTH_TOGGLE), decoded)
     }
 
     @Test fun encodeRefusesReset() {

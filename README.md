@@ -36,10 +36,17 @@ You need: a free GitHub account, the Termux app (install from F-Droid, not the P
 To change code later on the phone: edit files in the GitHub web editor (or in Termux), commit, and a new APK is built.
 
 ## Using it
-Counter screen → **Enable headset control** (allow notifications + Bluetooth) → Headset settings →
-**Press a headphone button** → press a button → assign actions per gesture → Save.
-Default for Play/Pause: single +1, double −1, triple stealth toggle, long press stealth ON.
-RESET can never be assigned to a headphone button (4 independent guards; see `BindingRules.kt`).
+* **Count:** tap anywhere on the screen (a finger resting longer than 0.45 s does not count), press any Bluetooth
+  headset button (single click = +1, instant), or press a phone volume key (a held key counts once).
+* **Stealth (special combination):** hold TWO fingers on the screen ~1 s to enter and again to leave. On headphones,
+  hold Play/Pause ~1.2 s. In stealth the screen is dimmed to the lowest level, the time bar is hidden, and a tap still counts.
+* **No decrement, no reset on the main screen.** Reset exists only in Settings → Danger zone (confirmed). Headphones and
+  volume keys can never reset or decrement.
+* **History:** menu (⋮) → History: every count is saved automatically by date and by hour.
+* **Mala:** 27/54/108 beads (Settings). Ring shows progress, "Today's Mala Count" shows completed malas, a long triple
+  buzz marks each completed mala (Settings → Vibration).
+* **Look:** Settings → god name (any text), colour, size and an optional picture.
+* **Any Bluetooth device:** Settings → Learn mode captures whatever key your device sends.
 
 ## Honest limits (read this)
 * **Volume up/down on Bluetooth headsets are not key events.** Most headsets use AVRCP absolute volume:

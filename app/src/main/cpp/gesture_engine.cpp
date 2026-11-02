@@ -31,6 +31,11 @@ void GestureEngine::configure(const GestureConfig& cfg) {
     cfg_ = sanitize(cfg);
 }
 
+void GestureEngine::setMaxTaps(int keyCode, int maxTaps) {
+    std::lock_guard<std::mutex> lock(mu_);
+    maxTaps_[keyCode] = std::min(kMaxTaps, std::max(1, maxTaps));
+}
+
 void GestureEngine::reset() {
     std::lock_guard<std::mutex> lock(mu_);
     keys_.clear();
@@ -92,8 +97,10 @@ std::vector<GestureEvent> GestureEngine::onKey(int keyCode, bool down, int64_t t
         }
         s.taps++;
         s.lastUp = t;
-        if (s.taps >= kMaxTaps) {
-            out.push_back({keyCode, Gesture::Triple, t});  // no need to wait further
+        const auto limitIt = maxTaps_.find(keyCode);
+        const int limit = limitIt == maxTaps_.end() ? kMaxTaps : limitIt->second;
+        if (s.taps >= limit) {
+            out.push_back({keyCode, gestureForTaps(s.taps), t});  // nothing more can follow: emit now
             s.taps = 0;
         }
     }

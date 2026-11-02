@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import java.io.IOException
@@ -30,8 +31,11 @@ class HeadsetSettingsRepository(private val store: DataStore<Preferences>) {
         val CONFIRM_TICK = booleanPreferencesKey("confirmation_tick")
         val VIBRATION = booleanPreferencesKey("vibration_enabled")
         val KEEP_ALIVE = booleanPreferencesKey("keep_alive_audio")
+        val MALA_VIBRATION = booleanPreferencesKey("mala_vibration")
+        val VOLUME_KEYS = booleanPreferencesKey("volume_keys_count")
+        val MALA_SIZE = intPreferencesKey("mala_size")
         /** Absent = first run (defaults apply). Present, even if empty = user's own mapping. */
-        val BINDINGS = stringSetPreferencesKey("bindings")
+        val BINDINGS = stringSetPreferencesKey("bindings_v2")
     }
 
     val settings: Flow<HeadsetSettings> = store.data
@@ -46,6 +50,14 @@ class HeadsetSettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setVibrationEnabled(enabled: Boolean) = store.edit { it[Keys.VIBRATION] = enabled }
 
     suspend fun setKeepAliveAudio(enabled: Boolean) = store.edit { it[Keys.KEEP_ALIVE] = enabled }
+
+    suspend fun setMalaVibration(enabled: Boolean) = store.edit { it[Keys.MALA_VIBRATION] = enabled }
+
+    suspend fun setVolumeKeysCount(enabled: Boolean) = store.edit { it[Keys.VOLUME_KEYS] = enabled }
+
+    suspend fun setMalaSize(size: Int) = store.edit {
+        it[Keys.MALA_SIZE] = if (size in HeadsetSettings.MALA_SIZES) size else HeadsetSettings.DEFAULT_MALA_SIZE
+    }
 
     suspend fun setTiming(debounceMs: Long, multiTapMs: Long, longPressMs: Long) = store.edit {
         it[Keys.DEBOUNCE_MS] = debounceMs.coerceIn(HeadsetSettings.DEBOUNCE_RANGE)
@@ -81,6 +93,9 @@ class HeadsetSettingsRepository(private val store: DataStore<Preferences>) {
         confirmationTick = this[Keys.CONFIRM_TICK] ?: false,
         vibrationEnabled = this[Keys.VIBRATION] ?: true,
         keepAliveAudio = this[Keys.KEEP_ALIVE] ?: true,
+        malaVibration = this[Keys.MALA_VIBRATION] ?: true,
+        volumeKeysCount = this[Keys.VOLUME_KEYS] ?: true,
+        malaSize = this[Keys.MALA_SIZE] ?: HeadsetSettings.DEFAULT_MALA_SIZE,
         bindings = currentBindings(),
     ).sanitized()
 }

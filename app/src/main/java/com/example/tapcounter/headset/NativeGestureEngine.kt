@@ -18,6 +18,12 @@ class NativeGestureEngine(config: GestureConfig = GestureConfig()) : AutoCloseab
         nativeConfigure(handle, config.debounceMs, config.multiTapWindowMs, config.longPressMs)
     }
 
+    /** 1..3. With 1, a single click is emitted at once (no waiting for a possible double click). */
+    @Synchronized
+    fun setMaxTaps(keyCode: Int, maxTaps: Int) {
+        if (handle != 0L) nativeSetMaxTaps(handle, keyCode, maxTaps)
+    }
+
     @Synchronized
     fun onKey(keyCode: Int, down: Boolean, timeMs: Long): List<GestureEvent> {
         if (handle == 0L) return emptyList()
@@ -66,6 +72,7 @@ class NativeGestureEngine(config: GestureConfig = GestureConfig()) : AutoCloseab
     private external fun nativeTick(handle: Long, nowMs: Long): LongArray?
     private external fun nativeNextDeadline(handle: Long): Long
     private external fun nativeReset(handle: Long)
+    private external fun nativeSetMaxTaps(handle: Long, keyCode: Int, maxTaps: Int)
 
     companion object {
         init {

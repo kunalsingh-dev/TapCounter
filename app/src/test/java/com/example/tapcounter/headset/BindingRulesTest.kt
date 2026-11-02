@@ -15,8 +15,15 @@ class BindingRulesTest {
     }
 
     @Test fun everyOtherActionIsAssignable() {
-        Action.entries.filter { it != Action.RESET }.forEach { assertTrue(it.name, it.isHeadsetAssignable) }
-        assertEquals(5, Action.headsetActions.size)
+        Action.entries.filter { it != Action.RESET && it != Action.DECREMENT }
+            .forEach { assertTrue(it.name, it.isHeadsetAssignable) }
+        assertEquals(4, Action.headsetActions.size)
+    }
+
+    @Test fun decrementIsRetired() {
+        assertFalse(Action.DECREMENT.isHeadsetAssignable)
+        assertFalse(Action.DECREMENT in Action.headsetActions)
+        assertNull(BindingRules.parseStoredAction("DECREMENT"))
     }
 
     @Test fun creatingResetBindingThrowsForEveryKeyAndGesture() {

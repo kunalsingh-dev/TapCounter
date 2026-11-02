@@ -33,7 +33,13 @@ class Feedback(context: Context) {
         if (tick) playTick(1500)
     }
 
-    /** Distinct double buzz: stealth forced on. */
+    /** Long triple pattern: a mala (full round) was completed. */
+    fun mala(vibrate: Boolean, tick: Boolean) {
+        if (vibrate) vibrate(VibrationEffect.createWaveform(longArrayOf(0, 250, 120, 250, 120, 500), -1))
+        if (tick) playTick(700)
+    }
+
+    /** Distinct double buzz: stealth on/off. */
     fun stealthForceOn(vibrate: Boolean, tick: Boolean) {
         if (vibrate) {
             vibrate(VibrationEffect.createWaveform(longArrayOf(0, 45, 80, 45), -1))

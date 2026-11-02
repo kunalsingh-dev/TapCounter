@@ -74,6 +74,12 @@ Java_com_example_tapcounter_headset_NativeGestureEngine_nativeNextDeadline(JNIEn
 }
 
 JNIEXPORT void JNICALL
+Java_com_example_tapcounter_headset_NativeGestureEngine_nativeSetMaxTaps(
+    JNIEnv*, jobject, jlong h, jint keyCode, jint maxTaps) {
+    fromHandle(h)->setMaxTaps(keyCode, maxTaps);
+}
+
+JNIEXPORT void JNICALL
 Java_com_example_tapcounter_headset_NativeGestureEngine_nativeReset(JNIEnv*, jobject, jlong h) {
     fromHandle(h)->reset();
 }

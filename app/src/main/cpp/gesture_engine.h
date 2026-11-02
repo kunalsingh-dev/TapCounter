@@ -30,6 +30,11 @@ public:
 
     void configure(const GestureConfig& cfg);
 
+    // Max taps for one key (1..3, default 3). When the tap count reaches it, the gesture is
+    // emitted immediately instead of waiting for the multi-tap window: maxTaps=1 means a
+    // single click counts with zero delay.
+    void setMaxTaps(int keyCode, int maxTaps);
+
     // Feed one key event. Returns gestures completed by this event
     // (including pending ones that expired before it).
     std::vector<GestureEvent> onKey(int keyCode, bool down, int64_t tMs);
@@ -57,6 +62,7 @@ private:
     mutable std::mutex mu_;
     GestureConfig cfg_;
     std::unordered_map<int, KeyState> keys_;
+    std::unordered_map<int, int> maxTaps_;
 };
 
 }  // namespace tapcounter

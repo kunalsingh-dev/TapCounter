@@ -1,8 +1,8 @@
 package com.example.tapcounter.headset
 
 /**
- * App-level actions. If your app already has an Action enum, merge these entries into it
- * and keep [isHeadsetAssignable].
+ * App-level actions. DECREMENT is kept only so old saved data still parses; the app has no
+ * decrement any more and it can no longer be assigned. RESET can never be assigned.
  */
 enum class Action {
     INCREMENT,
@@ -12,8 +12,8 @@ enum class Action {
     NONE,
     RESET;
 
-    /** RESET is destructive and must never be reachable from a headphone button. */
-    val isHeadsetAssignable: Boolean get() = this != RESET
+    /** RESET is destructive and DECREMENT is retired: neither may be reachable from a headphone button. */
+    val isHeadsetAssignable: Boolean get() = this != RESET && this != DECREMENT
 
     companion object {
         /** Actions the Settings UI may offer for headset buttons. */
