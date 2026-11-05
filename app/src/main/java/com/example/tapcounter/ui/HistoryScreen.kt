@@ -24,26 +24,61 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.TapCounterApp
 import com.example.tapcounter.data.DayRecord
+import com.example.tapcounter.data.ResetEvent
+import com.example.tapcounter.data.ResetType
+import com.example.tapcounter.data.SummaryMath
+import java.time.LocalDate
 
 @Composable
 fun HistoryScreen(app: TapCounterApp, onBack: () -> Unit) {
     val days by app.counterStore.history.days.collectAsStateWithLifecycle()
+    val resets by app.counterStore.history.resets.collectAsStateWithLifecycle()
+    val baseline by app.counterStore.history.baseline.collectAsStateWithLifecycle()
+    val summary = remember(days, baseline) { SummaryMath.compute(days, baseline, LocalDate.now().toString()) }
 
-    Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 16.dp)) {
         TextButton(onClick = onBack) { Text("← Back") }
         Text("History", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Saved automatically, by date and by hour. Tap a day to see the hours.",
+            "Saved automatically, by date and by hour. Every reset is logged with its date and time.",
             style = MaterialTheme.typography.bodySmall,
         )
-        if (days.isEmpty()) {
-            Text("Nothing counted yet.", modifier = Modifier.padding(top = 16.dp))
-        }
         LazyColumn(
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Now", style = MaterialTheme.typography.titleMedium)
+                        Text("Today: ${summary.todayTotal} counts · ${summary.todayMalas} mala")
+                        Text("All time: ${summary.allTime} counts · ${summary.allMalas} malas")
+                    }
+                }
+            }
+            if (resets.isNotEmpty()) {
+                item { Text("Resets", style = MaterialTheme.typography.titleMedium) }
+                items(resets) { r -> ResetCard(r) }
+            }
+            item { Text("Days", style = MaterialTheme.typography.titleMedium) }
+            if (days.isEmpty()) item { Text("Nothing counted yet.") }
             items(days, key = { it.date }) { day -> DayCard(day) }
+        }
+    }
+}
+
+@Composable
+private fun ResetCard(r: ResetEvent) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(r.at.replace('T', ' '), style = MaterialTheme.typography.titleSmall)
+            when (r.type) {
+                ResetType.MALA -> Text("Reset current mala (it was at ${r.ringCount}). Totals and malas kept.")
+                ResetType.ALL -> Text(
+                    "Reset ALL malas. Before: ring ${r.ringCount}, today ${r.todayTotal}, " +
+                        "all time ${r.allTime}, malas ${r.allMalas}. Now 0.",
+                )
+            }
         }
     }
 }

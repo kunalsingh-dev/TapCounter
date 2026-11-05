@@ -11,6 +11,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -62,11 +65,18 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) 
     val s by repo.settings.collectAsStateWithLifecycle(initialValue = HeadsetSettings())
     val d by store.display.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    var confirmReset by remember { mutableStateOf(false) }
+    var confirmMala by remember { mutableStateOf(false) }
+    var confirmAll by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null && importGodImage(context, uri, store.godImageFile)) {
             store.updateDisplay { it.copy(imageVersion = it.imageVersion + 1) }
+        }
+    }
+
+    val bgPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null && importGodImage(context, uri, store.bgImageFile)) {
+            store.updateDisplay { it.copy(bgImageVersion = it.bgImageVersion + 1) }
         }
     }
 
@@ -113,6 +123,31 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) 
             }) { Text("Remove picture") }
         }
 
+        // ---------------- Background ----------------
+        Text("Background", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BgThemes.forEachIndexed { i, t ->
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Brush.verticalGradient(listOf(t.top0, t.bottom0)))
+                        .border(3.dp, if (i == d.bgTheme) Color(0xFF8AB4F8) else Color.Gray, CircleShape)
+                        .clickable { store.updateDisplay { it.copy(bgTheme = i) } },
+                )
+            }
+        }
+        Text("Theme: ${BgThemes[d.bgTheme.coerceIn(0, BgThemes.lastIndex)].name}", style = MaterialTheme.typography.bodySmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                bgPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }) { Text("Background picture") }
+            OutlinedButton(onClick = {
+                store.bgImageFile.delete()
+                store.updateDisplay { it.copy(bgImageVersion = it.bgImageVersion + 1) }
+            }) { Text("Remove") }
+        }
+
         // ---------------- Counting ----------------
         Text("Counting", style = MaterialTheme.typography.titleMedium)
         SwitchRow("Tap anywhere on the screen to count", d.tapAnywhere) { v ->
@@ -136,7 +171,8 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) 
         // ---------------- Stealth ----------------
         Text("Stealth", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Enter and leave: hold TWO fingers on the screen for about 1 second. " +
+            "Enter and leave: hold FOUR or FIVE fingers on the screen for the time set below (default 5 s). " +
+                "Leaving stealth shows the calculator (see Calculator disguise). " +
                 "On headphones: hold the Play/Pause button about 1.2 s (changeable below). " +
                 "In stealth the screen is dimmed and black, a tap still counts.",
             style = MaterialTheme.typography.bodySmall,
@@ -145,6 +181,35 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) 
             store.updateDisplay { it.copy(stealthBrightnessPct = v) }
         }
         SwitchRow("Hide time bar (status bar) in stealth", d.hideBars) { v -> store.updateDisplay { it.copy(hideBars = v) } }
+
+        IntSlider("Hold fingers to switch stealth", d.stealthHoldSec, 3..10, "s") { v ->
+            store.updateDisplay { it.copy(stealthHoldSec = v) }
+        }
+
+        // ---------------- Calculator disguise ----------------
+        Text("Calculator disguise", style = MaterialTheme.typography.titleMedium)
+        SwitchRow("Show a working calculator when I leave stealth and when the app starts", d.calcLock) { v ->
+            store.updateDisplay { it.copy(calcLock = v) }
+        }
+        var codeDraft by remember(d.calcCode) { mutableStateOf(d.calcCode) }
+        OutlinedTextField(
+            value = codeDraft,
+            onValueChange = { v ->
+                val digits = v.filter { it.isDigit() }.take(8)
+                codeDraft = digits
+                if (digits.length >= 4) store.updateDisplay { it.copy(calcCode = digits) }
+            },
+            label = { Text("Secret code (4 to 8 digits)") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "On the calculator, type this code and press = to open the counter. Anything else just calculates. " +
+                "The default is 1234. Remember it: without the code you cannot open the counter. " +
+                "Counting by headphones, volume keys and the menu item Hide keep working while the calculator is shown.",
+            style = MaterialTheme.typography.bodySmall,
+        )
 
         // ---------------- Vibration ----------------
         Text("Vibration", style = MaterialTheme.typography.titleMedium)
@@ -218,23 +283,46 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) 
         }
 
         // ---------------- Reset (only here, never on the main screen, never from headphones) ----------------
-        Text("Danger zone", style = MaterialTheme.typography.titleMedium)
-        OutlinedButton(onClick = { confirmReset = true }) { Text("Reset current counter to 0") }
-        Text("History is kept. Reset can only be done on this screen.", style = MaterialTheme.typography.bodySmall)
+        Text("Reset", style = MaterialTheme.typography.titleMedium)
+        OutlinedButton(onClick = { confirmMala = true }) { Text("Reset current mala") }
+        Text(
+            "Ring goes back to 0. Completed malas, today's and all-time counts and your history stay saved.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        OutlinedButton(onClick = { confirmAll = true }) { Text("Reset ALL malas (all-time to 0)") }
+        Text(
+            "Ring, today's numbers, all-time count and all malas go to 0. The numbers are saved in the History reset log " +
+                "with date and time, and your day-by-day history stays saved.",
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 
-    if (confirmReset) {
+    if (confirmMala) {
         AlertDialog(
-            onDismissRequest = { confirmReset = false },
-            title = { Text("Reset counter?") },
-            text = { Text("Sets the current count back to 0. Your saved history is not deleted.") },
+            onDismissRequest = { confirmMala = false },
+            title = { Text("Reset current mala?") },
+            text = { Text("The ring goes back to 0. Everything else stays saved. This is logged with date and time.") },
             confirmButton = {
                 TextButton(onClick = {
-                    store.resetCount()
-                    confirmReset = false
-                }) { Text("Reset") }
+                    store.resetCurrentMala()
+                    confirmMala = false
+                }) { Text("Reset mala") }
             },
-            dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmMala = false }) { Text("Cancel") } },
+        )
+    }
+    if (confirmAll) {
+        AlertDialog(
+            onDismissRequest = { confirmAll = false },
+            title = { Text("Reset ALL malas?") },
+            text = { Text("All-time count, malas and today's numbers go to 0. The old numbers are saved in the History reset log with date and time.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    store.resetAll()
+                    confirmAll = false
+                }) { Text("Reset all") }
+            },
+            dismissButton = { TextButton(onClick = { confirmAll = false }) { Text("Cancel") } },
         )
     }
 }

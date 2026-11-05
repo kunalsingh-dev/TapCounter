@@ -152,6 +152,7 @@ class HeadsetService : Service() {
             keepAlive.stop()
             sessionManager.stop()
             controller.release()
+            runCatching { TapCounterApp.from(this).counterStore.flush() }
         }
         if (::controller.isInitialized) {
             controller.updateStatus {

@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -55,17 +56,19 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.TapCounterApp
 import com.example.tapcounter.data.MalaMath
+import com.example.tapcounter.data.SummaryMath
 import com.example.tapcounter.headset.HeadsetService
 import com.example.tapcounter.headset.HeadsetSettings
 import java.time.LocalDate
 
 @Composable
 fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory: () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val view = LocalView.current
     val counter by app.counterStore.state.collectAsStateWithLifecycle()
     val display by app.counterStore.display.collectAsStateWithLifecycle()
     val days by app.counterStore.history.days.collectAsStateWithLifecycle()
+    val baseline by app.counterStore.history.baseline.collectAsStateWithLifecycle()
     val status by app.headsetController.status.collectAsStateWithLifecycle()
     val settings by app.headsetSettings.settings.collectAsStateWithLifecycle(initialValue = HeadsetSettings())
     val enable = rememberEnableHeadset()
@@ -91,27 +94,32 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
         }
     }
 
-    val gestures = Modifier.pointerInput(display.tapAnywhere, counter.stealth) {
+    val holdMs = display.stealthHoldSec.coerceIn(3, 10) * 1000L
+    val gestures = Modifier.pointerInput(display.tapAnywhere, counter.stealth, holdMs) {
         detectCounterGestures(
             tapEnabled = display.tapAnywhere,
+            comboHoldMs = holdMs,
             onTap = { app.headsetController.countTap() },
             onCombo = { app.headsetController.stealthComboFromScreen() },
         )
     }
 
     if (counter.stealth) {
-        // Pure black, nothing drawn. Tap = +1, two fingers held 1 s = leave stealth.
+        // Pure black, nothing drawn. Tap = +1; 4-5 fingers held = leave stealth (calculator appears).
         Box(modifier = Modifier.fillMaxSize().background(Color.Black).then(gestures))
         return
     }
 
+    val theme = BgThemes[display.bgTheme.coerceIn(0, BgThemes.lastIndex)]
     val progress = MalaMath.progress(counter.count, settings.malaSize)
-    val top = lerp(Color(0xFF4BA591), Color(0xFF5AA0B5), progress)
-    val bottom = lerp(Color(0xFF4E5E86), Color(0xFF7A8EB0), progress)
-    val today = days.firstOrNull { it.date == LocalDate.now().toString() }
-    val allTime = days.sumOf { it.total }
+    val top = lerp(theme.top0, theme.top1, progress)
+    val bottom = lerp(theme.bottom0, theme.bottom1, progress)
+    val summary = remember(days, baseline) { SummaryMath.compute(days, baseline, LocalDate.now().toString()) }
     val godImage = remember(display.imageVersion) {
         BitmapFactory.decodeFile(app.counterStore.godImageFile.path)?.asImageBitmap()
+    }
+    val bgImage = remember(display.bgImageVersion) {
+        BitmapFactory.decodeFile(app.counterStore.bgImageFile.path)?.asImageBitmap()
     }
 
     Box(
@@ -120,6 +128,16 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
             .background(Brush.verticalGradient(listOf(top, bottom)))
             .then(gestures),
     ) {
+        bgImage?.let {
+            Image(
+                bitmap = it,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.30f)))
+        }
+
         Column(modifier = Modifier.fillMaxSize()) {
             // Top bar
             Row(
@@ -137,6 +155,10 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(text = { Text("History") }, onClick = { menuOpen = false; onOpenHistory() })
                         DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onOpenSettings() })
+                        DropdownMenuItem(
+                            text = { Text("Hide (show calculator)") },
+                            onClick = { menuOpen = false; app.counterStore.lockNow() },
+                        )
                     }
                 }
             }
@@ -170,7 +192,7 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
                     )
                 }
 
-                // Ring with the count inside the current mala
+                // Ring: your taps inside the current mala
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(220.dp)) {
                     Canvas(modifier = Modifier.fillMaxSize()) {
                         val stroke = 18.dp.toPx()
@@ -204,7 +226,7 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
                     )
                 }
 
-                Text("Today's Mala Count: ${today?.malas ?: 0}", color = Color.White, fontSize = 22.sp)
+                Text("Today's Mala Count: ${summary.todayMalas}", color = Color.White, fontSize = 22.sp)
 
                 // Info box
                 Column(
@@ -215,9 +237,9 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "Today: ${today?.total ?: 0}   ·   All time: $allTime",
+                        "Today: ${summary.todayTotal}  ·  All time: ${summary.allTime}  ·  Malas: ${summary.allMalas}",
                         color = Color.White,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                     )
                     if (!status.serviceRunning) {
                         TextButton(onClick = enable) {

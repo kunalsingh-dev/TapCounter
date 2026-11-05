@@ -89,3 +89,15 @@ fun rememberEnableHeadset(): () -> Unit {
         if (missing.isEmpty()) HeadsetService.start(context) else launcher.launch(missing.toTypedArray())
     }
 }
+
+/** Counter background themes: gradient at 0% and at 100% of a mala (colour drifts as you count). */
+data class BgTheme(val name: String, val top0: Color, val bottom0: Color, val top1: Color, val bottom1: Color)
+
+val BgThemes = listOf(
+    BgTheme("Mala", Color(0xFF4BA591), Color(0xFF4E5E86), Color(0xFF5AA0B5), Color(0xFF7A8EB0)),
+    BgTheme("Saffron", Color(0xFFE8A23A), Color(0xFF9C4A1A), Color(0xFFF2C14E), Color(0xFFC4561F)),
+    BgTheme("Midnight", Color(0xFF2B3A67), Color(0xFF111827), Color(0xFF5B4B8A), Color(0xFF1F1B3A)),
+    BgTheme("Forest", Color(0xFF2E7D5B), Color(0xFF123524), Color(0xFF4CAF7A), Color(0xFF1B4D35)),
+    BgTheme("Rose", Color(0xFFD6577A), Color(0xFF5C1A33), Color(0xFFEF7A9A), Color(0xFF7A2442)),
+    BgTheme("Ocean", Color(0xFF2A7FB8), Color(0xFF0E2F4F), Color(0xFF3FB0D8), Color(0xFF164A73)),
+)

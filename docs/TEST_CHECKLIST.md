@@ -55,3 +55,17 @@ Model, key names + codes from Learn mode, which gestures worked, whether it need
 - [ ] Reach 108: ring resets, "Today's Mala Count" +1, long triple buzz.
 - [ ] History shows today's total and hourly breakdown; survives app restart; new day starts a new entry.
 - [ ] No − button, no Reset button on the main screen.
+
+## I. v3 additions
+- [ ] Tap counts the instant the finger lands (no wait for release); a finger left down counts once only.
+- [ ] Four or five fingers held 5 s: stealth on (double buzz), no stray count. Again 5 s: stealth off and the CALCULATOR appears.
+- [ ] Calculator really calculates (2+3=5, 10/4=2.5, 1/0=Error).
+- [ ] Type 1234 then = : the counter opens. Type 12+34= : just 46. Wrong codes do nothing special.
+- [ ] Change the secret code in Settings; the new one works, the old one does not.
+- [ ] Start the app fresh (swipe it away, reopen): calculator first.
+- [ ] While the calculator is showing, headphone / volume counting still works.
+- [ ] Menu ⋮ -> Hide shows the calculator immediately.
+- [ ] Reset current mala: ring 0, today/all-time/malas unchanged; entry appears in History > Resets with date+time.
+- [ ] Reset ALL malas: ring, today, all-time and malas read 0; History keeps the days and shows the reset with date+time and old numbers.
+- [ ] Counting after Reset ALL starts from 0 again.
+- [ ] Background themes change the screen colours; background picture can be added and removed.

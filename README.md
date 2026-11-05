@@ -38,8 +38,13 @@ To change code later on the phone: edit files in the GitHub web editor (or in Te
 ## Using it
 * **Count:** tap anywhere on the screen (a finger resting longer than 0.45 s does not count), press any Bluetooth
   headset button (single click = +1, instant), or press a phone volume key (a held key counts once).
-* **Stealth (special combination):** hold TWO fingers on the screen ~1 s to enter and again to leave. On headphones,
+* **Stealth:** hold FOUR or FIVE fingers on the screen for 5 s (adjustable 3-10 s) to enter and again to leave. On headphones,
   hold Play/Pause ~1.2 s. In stealth the screen is dimmed to the lowest level, the time bar is hidden, and a tap still counts.
+* **Calculator disguise:** leaving stealth (and starting the app) shows a working calculator. Type your secret code
+  (default **1234**, change it in Settings) and press = to open the counter. Menu ⋮ -> Hide also shows the calculator.
+* **Backgrounds:** Settings -> Background: 6 colour themes and an optional picture.
+* **Resets:** Settings -> Reset: 'current mala' (ring to 0, everything else kept) or 'ALL malas' (all-time to 0). Both are
+  logged with date and time in History.
 * **No decrement, no reset on the main screen.** Reset exists only in Settings → Danger zone (confirmed). Headphones and
   volume keys can never reset or decrement.
 * **History:** menu (⋮) → History: every count is saved automatically by date and by hour.

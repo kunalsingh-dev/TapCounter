@@ -16,6 +16,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.tapcounter.ui.CalculatorScreen
 import com.example.tapcounter.ui.CounterScreen
 import com.example.tapcounter.ui.HistoryScreen
 import com.example.tapcounter.ui.LearnScreen
@@ -40,6 +42,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStop() {
+        TapCounterApp.from(this).counterStore.flush()
+        super.onStop()
+    }
+
     // Phone volume buttons while the app is open. A held key repeats with repeatCount > 0
     // and is swallowed without counting; only a fresh press counts.
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
@@ -58,6 +65,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppRoot(app: TapCounterApp) {
     var screen by rememberSaveable { mutableStateOf(Screen.COUNTER) }
+    val counter by app.counterStore.state.collectAsStateWithLifecycle()
+    val display by app.counterStore.display.collectAsStateWithLifecycle()
+
+    // Calculator disguise: shown instead of the app until the secret code + "=" is entered.
+    if (counter.locked) {
+        CalculatorScreen(code = display.calcCode, onUnlock = { app.counterStore.unlock() })
+        return
+    }
 
     BackHandler(enabled = screen != Screen.COUNTER) {
         screen = if (screen == Screen.LEARN) Screen.SETTINGS else Screen.COUNTER
