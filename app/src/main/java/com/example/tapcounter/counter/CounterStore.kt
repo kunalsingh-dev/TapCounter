@@ -3,6 +3,7 @@ package com.example.tapcounter.counter
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import com.example.tapcounter.data.HistoryStore
 import com.example.tapcounter.data.MalaMath
 import com.example.tapcounter.data.ResetEvent
@@ -35,8 +36,8 @@ data class DisplayState(
     /** Show a working calculator when leaving stealth and when the app starts; the code opens the counter. */
     val calcLock: Boolean = true,
     val calcCode: String = DEFAULT_CALC_CODE,
-    /** Seconds the four/five-finger hold must last to switch stealth. */
-    val stealthHoldSec: Int = 5,
+    /** Milliseconds the four/five-finger hold must last to switch stealth. */
+    val stealthHoldMs: Int = 1000,
 ) {
     companion object {
         const val DEFAULT_GOD_NAME = "राधावल्लभ\nश्रीहरिवंश"
@@ -91,8 +92,26 @@ class CounterStore(context: Context) : CounterActions {
         val n = _state.updateAndGet { it.copy(count = it.count + 1) }
         val completed = MalaMath.completesMala(n.count, malaSize)
         history.record(completed) // automatic date + hour log
+        lastIncrementAt = SystemClock.uptimeMillis()
         queueSave()
         return completed
+    }
+
+    @Volatile
+    private var lastIncrementAt = 0L
+
+    /**
+     * Takes back the count a multi-finger touch made by accident (4 fingers landing for stealth).
+     * Only works within 400 ms of the count and is called only from the screen gesture code,
+     * never from headset or volume buttons.
+     */
+    fun undoLastCount() {
+        if (SystemClock.uptimeMillis() - lastIncrementAt > UNDO_MAX_MS) return
+        lastIncrementAt = 0L
+        if (_state.value.count <= 0) return
+        _state.update { it.copy(count = it.count - 1) }
+        history.undoLast()
+        queueSave()
     }
 
     override fun toggleStealth() = setStealth(!_state.value.stealth)
@@ -166,7 +185,7 @@ class CounterStore(context: Context) : CounterActions {
             .putInt(KEY_BG_IMAGE_VERSION, d.bgImageVersion)
             .putBoolean(KEY_CALC_LOCK, d.calcLock)
             .putString(KEY_CALC_CODE, d.calcCode)
-            .putInt(KEY_STEALTH_HOLD, d.stealthHoldSec)
+            .putInt(KEY_STEALTH_HOLD_MS, d.stealthHoldMs)
             .apply()
     }
 
@@ -194,7 +213,7 @@ class CounterStore(context: Context) : CounterActions {
         bgImageVersion = prefs.getInt(KEY_BG_IMAGE_VERSION, 0),
         calcLock = prefs.getBoolean(KEY_CALC_LOCK, true),
         calcCode = prefs.getString(KEY_CALC_CODE, DisplayState.DEFAULT_CALC_CODE) ?: DisplayState.DEFAULT_CALC_CODE,
-        stealthHoldSec = prefs.getInt(KEY_STEALTH_HOLD, 5),
+        stealthHoldMs = prefs.getInt(KEY_STEALTH_HOLD_MS, 1000),
     )
 
     private companion object {
@@ -212,6 +231,7 @@ class CounterStore(context: Context) : CounterActions {
         const val KEY_BG_IMAGE_VERSION = "bg_image_version"
         const val KEY_CALC_LOCK = "calc_lock"
         const val KEY_CALC_CODE = "calc_code"
-        const val KEY_STEALTH_HOLD = "stealth_hold_sec"
+        const val KEY_STEALTH_HOLD_MS = "stealth_hold_ms"
+        const val UNDO_MAX_MS = 400L
     }
 }

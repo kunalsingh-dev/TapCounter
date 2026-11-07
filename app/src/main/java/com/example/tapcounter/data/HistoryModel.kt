@@ -10,6 +10,14 @@ data class DayRecord(val date: String, val hours: List<Int>, val malas: Int) {
         h[i] = h[i] + 1
         return copy(hours = h, malas = malas + if (malaCompleted) 1 else 0)
     }
+
+    /** Exact inverse of [withCount] (never below 0). */
+    fun withoutCount(hour: Int, malaCompleted: Boolean): DayRecord {
+        val h = hours.toMutableList()
+        val i = hour.coerceIn(0, 23)
+        h[i] = (h[i] - 1).coerceAtLeast(0)
+        return copy(hours = h, malas = (malas - if (malaCompleted) 1 else 0).coerceAtLeast(0))
+    }
 }
 
 /** Storage format: "malas|h0,h1,...,h23". Malformed entries decode to null. */

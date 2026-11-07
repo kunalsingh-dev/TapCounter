@@ -171,7 +171,7 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) 
         // ---------------- Stealth ----------------
         Text("Stealth", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Enter and leave: hold FOUR or FIVE fingers on the screen for the time set below (default 5 s). " +
+            "Enter and leave: hold FOUR or FIVE fingers on the screen for the time set below (default 1 second). " +
                 "Leaving stealth shows the calculator (see Calculator disguise). " +
                 "On headphones: hold the Play/Pause button about 1.2 s (changeable below). " +
                 "In stealth the screen is dimmed and black, a tap still counts.",
@@ -182,8 +182,8 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) 
         }
         SwitchRow("Hide time bar (status bar) in stealth", d.hideBars) { v -> store.updateDisplay { it.copy(hideBars = v) } }
 
-        IntSlider("Hold fingers to switch stealth", d.stealthHoldSec, 3..10, "s") { v ->
-            store.updateDisplay { it.copy(stealthHoldSec = v) }
+        IntSlider("Hold time for 4-5 fingers (stealth)", d.stealthHoldMs, 300..5000, "ms") { v ->
+            store.updateDisplay { it.copy(stealthHoldMs = v) }
         }
 
         // ---------------- Calculator disguise ----------------

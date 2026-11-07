@@ -94,12 +94,13 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
         }
     }
 
-    val holdMs = display.stealthHoldSec.coerceIn(3, 10) * 1000L
+    val holdMs = display.stealthHoldMs.coerceIn(300, 5000).toLong()
     val gestures = Modifier.pointerInput(display.tapAnywhere, counter.stealth, holdMs) {
         detectCounterGestures(
             tapEnabled = display.tapAnywhere,
             comboHoldMs = holdMs,
             onTap = { app.headsetController.countTap() },
+            onUndo = { app.counterStore.undoLastCount() },
             onCombo = { app.headsetController.stealthComboFromScreen() },
         )
     }

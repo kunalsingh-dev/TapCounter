@@ -67,4 +67,18 @@ class HistoryModelTest {
         val s = SummaryMath.compute(emptyList(), Baseline(allTime = 99, allMalas = 9, todayDate = "d", todayTotal = 5), "d")
         assertEquals(Summary(0, 0, 0, 0), s)
     }
+
+    @Test fun withoutCountIsExactInverse() {
+        val start = HistoryCodec.emptyDay("d").withCount(5, false).withCount(5, true)
+        val back = start.withoutCount(5, true)
+        assertEquals(1, back.total)
+        assertEquals(0, back.malas)
+        assertEquals(start.withCount(9, true).withoutCount(9, true), start)
+    }
+
+    @Test fun withoutCountNeverNegative() {
+        val r = HistoryCodec.emptyDay("d").withoutCount(3, true)
+        assertEquals(0, r.total)
+        assertEquals(0, r.malas)
+    }
 }

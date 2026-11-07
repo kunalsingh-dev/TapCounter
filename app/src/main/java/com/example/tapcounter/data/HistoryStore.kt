@@ -19,6 +19,8 @@ class HistoryStore(context: Context) {
     private val handler = Handler(Looper.getMainLooper())
     private val dirtyDates = linkedSetOf<String>()
     private var saveQueued = false
+    private var last: LastRecord? = null
+    private data class LastRecord(val date: String, val hour: Int, val completed: Boolean)
     private val saveRunnable = Runnable {
         saveQueued = false
         saveNow()
@@ -49,6 +51,19 @@ class HistoryStore(context: Context) {
             (list.filter { it.date != date } + updated).sortedByDescending { it.date }
         }
         dirtyDates.add(date)
+        last = LastRecord(date, now.hour, malaCompleted)
+        queueSave()
+    }
+
+    /** Takes back the most recent [record] (used only to correct an accidental multi-finger touch). */
+    fun undoLast() {
+        val l = last ?: return
+        last = null
+        val list = _days.value
+        val day = list.firstOrNull { it.date == l.date } ?: return
+        val updated = day.withoutCount(l.hour, l.completed)
+        _days.value = list.map { if (it.date == l.date) updated else it }
+        dirtyDates.add(l.date)
         queueSave()
     }
 

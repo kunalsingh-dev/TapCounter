@@ -38,7 +38,7 @@ To change code later on the phone: edit files in the GitHub web editor (or in Te
 ## Using it
 * **Count:** tap anywhere on the screen (a finger resting longer than 0.45 s does not count), press any Bluetooth
   headset button (single click = +1, instant), or press a phone volume key (a held key counts once).
-* **Stealth:** hold FOUR or FIVE fingers on the screen for 5 s (adjustable 3-10 s) to enter and again to leave. On headphones,
+* **Stealth:** hold FOUR or FIVE fingers on the screen for 1 s (adjustable 0.3-5 s) to enter and again to leave. On headphones,
   hold Play/Pause ~1.2 s. In stealth the screen is dimmed to the lowest level, the time bar is hidden, and a tap still counts.
 * **Calculator disguise:** leaving stealth (and starting the app) shows a working calculator. Type your secret code
   (default **1234**, change it in Settings) and press = to open the counter. Menu ⋮ -> Hide also shows the calculator.

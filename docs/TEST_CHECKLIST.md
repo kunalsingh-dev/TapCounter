@@ -58,7 +58,7 @@ Model, key names + codes from Learn mode, which gestures worked, whether it need
 
 ## I. v3 additions
 - [ ] Tap counts the instant the finger lands (no wait for release); a finger left down counts once only.
-- [ ] Four or five fingers held 5 s: stealth on (double buzz), no stray count. Again 5 s: stealth off and the CALCULATOR appears.
+- [ ] Four or five fingers held ~1 s: stealth on (double buzz), no stray count. Again ~1 s: stealth off and the CALCULATOR appears.
 - [ ] Calculator really calculates (2+3=5, 10/4=2.5, 1/0=Error).
 - [ ] Type 1234 then = : the counter opens. Type 12+34= : just 46. Wrong codes do nothing special.
 - [ ] Change the secret code in Settings; the new one works, the old one does not.
