@@ -101,3 +101,6 @@ val BgThemes = listOf(
     BgTheme("Rose", Color(0xFFD6577A), Color(0xFF5C1A33), Color(0xFFEF7A9A), Color(0xFF7A2442)),
     BgTheme("Ocean", Color(0xFF2A7FB8), Color(0xFF0E2F4F), Color(0xFF3FB0D8), Color(0xFF164A73)),
 )
+
+/** 412 -> "6:52" */
+fun formatDuration(seconds: Int): String = "%d:%02d".format(seconds / 60, seconds % 60)

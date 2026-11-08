@@ -56,19 +56,26 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.TapCounterApp
 import com.example.tapcounter.data.MalaMath
+import com.example.tapcounter.data.MalaStats
 import com.example.tapcounter.data.SummaryMath
 import com.example.tapcounter.headset.HeadsetService
 import com.example.tapcounter.headset.HeadsetSettings
 import java.time.LocalDate
 
 @Composable
-fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory: () -> Unit) {
+fun CounterScreen(
+    app: TapCounterApp,
+    onOpenSettings: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenAnalytics: () -> Unit,
+) {
     val context = LocalContext.current
     val view = LocalView.current
     val counter by app.counterStore.state.collectAsStateWithLifecycle()
     val display by app.counterStore.display.collectAsStateWithLifecycle()
     val days by app.counterStore.history.days.collectAsStateWithLifecycle()
     val baseline by app.counterStore.history.baseline.collectAsStateWithLifecycle()
+    val malaRecords by app.counterStore.history.malas.collectAsStateWithLifecycle()
     val status by app.headsetController.status.collectAsStateWithLifecycle()
     val settings by app.headsetSettings.settings.collectAsStateWithLifecycle(initialValue = HeadsetSettings())
     val enable = rememberEnableHeadset()
@@ -99,7 +106,7 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
         detectCounterGestures(
             tapEnabled = display.tapAnywhere,
             comboHoldMs = holdMs,
-            onTap = { app.headsetController.countTap() },
+            onTap = { app.headsetController.countTap(display.tapMinGapMs.toLong()) },
             onUndo = { app.counterStore.undoLastCount() },
             onCombo = { app.headsetController.stealthComboFromScreen() },
         )
@@ -113,8 +120,10 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
 
     val theme = BgThemes[display.bgTheme.coerceIn(0, BgThemes.lastIndex)]
     val progress = MalaMath.progress(counter.count, settings.malaSize)
-    val top = lerp(theme.top0, theme.top1, progress)
-    val bottom = lerp(theme.bottom0, theme.bottom1, progress)
+    val customTheme = display.bgTheme >= BgThemes.size
+    val top = if (customTheme) Color(display.customTop) else lerp(theme.top0, theme.top1, progress)
+    val bottom = if (customTheme) Color(display.customBottom) else lerp(theme.bottom0, theme.bottom1, progress)
+    val malaStats = remember(malaRecords) { MalaStats.summarize(malaRecords.map { it.seconds }) }
     val summary = remember(days, baseline) { SummaryMath.compute(days, baseline, LocalDate.now().toString()) }
     val godImage = remember(display.imageVersion) {
         BitmapFactory.decodeFile(app.counterStore.godImageFile.path)?.asImageBitmap()
@@ -155,6 +164,7 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
                     TextButton(onClick = { menuOpen = true }) { Text("⋮", color = Color.White, fontSize = 26.sp) }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(text = { Text("History") }, onClick = { menuOpen = false; onOpenHistory() })
+                        DropdownMenuItem(text = { Text("Analytics") }, onClick = { menuOpen = false; onOpenAnalytics() })
                         DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onOpenSettings() })
                         DropdownMenuItem(
                             text = { Text("Hide (show calculator)") },
@@ -242,6 +252,21 @@ fun CounterScreen(app: TapCounterApp, onOpenSettings: () -> Unit, onOpenHistory:
                         color = Color.White,
                         fontSize = 15.sp,
                     )
+                    if (display.dailyGoalMalas > 0) {
+                        val met = summary.todayMalas >= display.dailyGoalMalas
+                        Text(
+                            "Goal: ${summary.todayMalas}/${display.dailyGoalMalas} malas" + if (met) "  ✓" else "",
+                            color = if (met) Color(0xFFFFD54F) else Color.White,
+                            fontSize = 14.sp,
+                        )
+                    }
+                    malaStats.lastSec?.let { last ->
+                        Text(
+                            "Last mala: ${formatDuration(last)}  ·  Avg: ${formatDuration(malaStats.avgSec ?: last)}",
+                            color = Color(0xFFB0B8C4),
+                            fontSize = 12.sp,
+                        )
+                    }
                     if (!status.serviceRunning) {
                         TextButton(onClick = enable) {
                             Text("Enable headset + volume buttons", color = Color(0xFF8AB4F8))

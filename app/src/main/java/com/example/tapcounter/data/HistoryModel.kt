@@ -122,3 +122,16 @@ object SummaryMath {
         )
     }
 }
+
+/** How long one finished mala took. */
+data class MalaRecord(val at: String, val seconds: Int)
+
+object MalaRecordCodec {
+    fun encode(r: MalaRecord): String = "${r.at}|${r.seconds}"
+
+    fun decode(raw: String): MalaRecord? {
+        val p = raw.split('|')
+        if (p.size != 2) return null
+        return MalaRecord(p[0], p[1].toIntOrNull() ?: return null)
+    }
+}

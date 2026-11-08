@@ -11,6 +11,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.input.KeyboardType
@@ -125,19 +129,33 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) 
 
         // ---------------- Background ----------------
         Text("Background", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             BgThemes.forEachIndexed { i, t ->
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
                         .background(Brush.verticalGradient(listOf(t.top0, t.bottom0)))
                         .border(3.dp, if (i == d.bgTheme) Color(0xFF8AB4F8) else Color.Gray, CircleShape)
                         .clickable { store.updateDisplay { it.copy(bgTheme = i) } },
                 )
             }
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Brush.verticalGradient(listOf(Color(d.customTop), Color(d.customBottom))))
+                    .border(3.dp, if (d.bgTheme >= BgThemes.size) Color(0xFF8AB4F8) else Color.Gray, CircleShape)
+                    .clickable { store.updateDisplay { it.copy(bgTheme = BgThemes.size) } },
+            )
         }
-        Text("Theme: ${BgThemes[d.bgTheme.coerceIn(0, BgThemes.lastIndex)].name}", style = MaterialTheme.typography.bodySmall)
+        Text(
+            "Theme: " + if (d.bgTheme >= BgThemes.size) "Custom (last circle)" else BgThemes[d.bgTheme.coerceIn(0, BgThemes.lastIndex)].name,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Text("Colour picker (changing a colour switches to the Custom theme)", style = MaterialTheme.typography.titleSmall)
+        ColorPicker("Top colour", d.customTop) { c -> store.updateDisplay { it.copy(customTop = c, bgTheme = BgThemes.size) } }
+        ColorPicker("Bottom colour", d.customBottom) { c -> store.updateDisplay { it.copy(customBottom = c, bgTheme = BgThemes.size) } }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = {
                 bgPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
@@ -152,6 +170,30 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) 
         Text("Counting", style = MaterialTheme.typography.titleMedium)
         SwitchRow("Tap anywhere on the screen to count", d.tapAnywhere) { v ->
             store.updateDisplay { it.copy(tapAnywhere = v) }
+        }
+        Text("Touch speed")
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+            listOf("Slow" to 400, "Normal" to 200, "Fast" to 100, "Turbo" to 0).forEach { (name, gap) ->
+                if (d.tapMinGapMs == gap) {
+                    Button(onClick = {}, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 4.dp)) { Text(name) }
+                } else {
+                    OutlinedButton(
+                        onClick = { store.updateDisplay { it.copy(tapMinGapMs = gap) } },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp),
+                    ) { Text(name) }
+                }
+            }
+        }
+        IntSlider("Minimum time between counted taps", d.tapMinGapMs, 0..800, "ms") { v ->
+            store.updateDisplay { it.copy(tapMinGapMs = v) }
+        }
+        Text(
+            "Turbo counts every touch. Slow ignores touches closer than 0.4 s, which stops accidental double touches. Applies to screen taps.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        IntSlider("Daily goal (0 = off)", d.dailyGoalMalas, 0..30, "malas") { v ->
+            store.updateDisplay { it.copy(dailyGoalMalas = v) }
         }
         Text("Beads per mala")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -364,6 +406,49 @@ private fun IntSlider(label: String, value: Int, range: IntRange, unit: String, 
             valueRange = range.first.toFloat()..range.last.toFloat(),
             onValueChangeFinished = { onCommit(local.toInt()) },
         )
+    }
+}
+
+private val PaletteColors = listOf(
+    0xFFE53935, 0xFFFB8C00, 0xFFFDD835, 0xFF43A047, 0xFF00ACC1, 0xFF1E88E5,
+    0xFF3949AB, 0xFF8E24AA, 0xFFD81B60, 0xFF6D4C41, 0xFF455A64, 0xFF111111,
+).map { Color(it) }
+
+/** Palette dots for a quick pick, plus hue / saturation / brightness sliders for any colour. */
+@Composable
+private fun ColorPicker(title: String, argb: Int, onChange: (Int) -> Unit) {
+    val hsv = remember(argb) { FloatArray(3).also { android.graphics.Color.colorToHSV(argb, it) } }
+    var hue by remember(argb) { mutableFloatStateOf(hsv[0]) }
+    var sat by remember(argb) { mutableFloatStateOf(hsv[1]) }
+    var value by remember(argb) { mutableFloatStateOf(hsv[2]) }
+    fun current() = Color.hsv(hue.coerceIn(0f, 360f), sat.coerceIn(0f, 1f), value.coerceIn(0f, 1f))
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(current()),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            PaletteColors.forEach { c ->
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(c)
+                        .clickable { onChange(c.toArgb()) },
+                )
+            }
+        }
+        Text("Hue", style = MaterialTheme.typography.labelSmall)
+        Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f, onValueChangeFinished = { onChange(current().toArgb()) })
+        Text("Saturation", style = MaterialTheme.typography.labelSmall)
+        Slider(value = sat, onValueChange = { sat = it }, valueRange = 0f..1f, onValueChangeFinished = { onChange(current().toArgb()) })
+        Text("Brightness", style = MaterialTheme.typography.labelSmall)
+        Slider(value = value, onValueChange = { value = it }, valueRange = 0f..1f, onValueChangeFinished = { onChange(current().toArgb()) })
     }
 }
 

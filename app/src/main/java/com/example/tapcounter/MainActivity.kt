@@ -17,6 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.tapcounter.ui.AnalyticsScreen
 import com.example.tapcounter.ui.CalculatorScreen
 import com.example.tapcounter.ui.CounterScreen
 import com.example.tapcounter.ui.HistoryScreen
@@ -24,7 +25,7 @@ import com.example.tapcounter.ui.LearnScreen
 import com.example.tapcounter.ui.SettingsScreen
 import com.example.tapcounter.ui.TapCounterTheme
 
-enum class Screen { COUNTER, SETTINGS, LEARN, HISTORY }
+enum class Screen { COUNTER, SETTINGS, LEARN, HISTORY, ANALYTICS }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,6 +84,7 @@ fun AppRoot(app: TapCounterApp) {
             app,
             onOpenSettings = { screen = Screen.SETTINGS },
             onOpenHistory = { screen = Screen.HISTORY },
+            onOpenAnalytics = { screen = Screen.ANALYTICS },
         )
         Screen.SETTINGS -> SettingsScreen(
             app,
@@ -91,5 +93,6 @@ fun AppRoot(app: TapCounterApp) {
         )
         Screen.LEARN -> LearnScreen(app, onDone = { screen = Screen.SETTINGS })
         Screen.HISTORY -> HistoryScreen(app, onBack = { screen = Screen.COUNTER })
+        Screen.ANALYTICS -> AnalyticsScreen(app, onBack = { screen = Screen.COUNTER })
     }
 }

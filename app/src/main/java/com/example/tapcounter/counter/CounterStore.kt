@@ -6,6 +6,8 @@ import android.os.Looper
 import android.os.SystemClock
 import com.example.tapcounter.data.HistoryStore
 import com.example.tapcounter.data.MalaMath
+import com.example.tapcounter.data.MalaRecord
+import com.example.tapcounter.data.MalaTimer
 import com.example.tapcounter.data.ResetEvent
 import com.example.tapcounter.data.ResetType
 import java.io.File
@@ -38,6 +40,13 @@ data class DisplayState(
     val calcCode: String = DEFAULT_CALC_CODE,
     /** Milliseconds the four/five-finger hold must last to switch stealth. */
     val stealthHoldMs: Int = 1000,
+    /** Touch speed: a screen tap closer than this to the previous counted tap is ignored (0 = every touch). */
+    val tapMinGapMs: Int = 0,
+    /** Daily goal in malas (0 = off). */
+    val dailyGoalMalas: Int = 0,
+    /** Custom background colours (ARGB), used when [bgTheme] == custom (= number of built-in themes). */
+    val customTop: Int = 0xFF4BA591.toInt(),
+    val customBottom: Int = 0xFF4E5E86.toInt(),
 ) {
     companion object {
         const val DEFAULT_GOD_NAME = "राधावल्लभ\nश्रीहरिवंश"
@@ -45,13 +54,15 @@ data class DisplayState(
     }
 }
 
+/** What one count did. GOAL = it completed the mala that met today's goal. */
+enum class CountResult { COUNTED, MALA, GOAL }
+
 /**
  * The ONLY surface the headset layer can touch. There is no reset() and no decrement(), so a
  * headphone/volume button can never reset or reduce the counter, even through a coding mistake.
  */
 interface CounterActions {
-    /** @return true when this count completed a mala. */
-    fun increment(): Boolean
+    fun increment(): CountResult
     fun toggleStealth()
     fun forceStealthOn()
 }
@@ -88,13 +99,22 @@ class CounterStore(context: Context) : CounterActions {
     val godImageFile: File get() = File(appContext.filesDir, "god_image.jpg")
     val bgImageFile: File get() = File(appContext.filesDir, "bg_image.jpg")
 
-    override fun increment(): Boolean {
+    private val malaTimer = MalaTimer().also { it.restore(prefs.getLong(KEY_MALA_ACTIVE_MS, 0L)) }
+
+    override fun increment(): CountResult {
         val n = _state.updateAndGet { it.copy(count = it.count + 1) }
         val completed = MalaMath.completesMala(n.count, malaSize)
         history.record(completed) // automatic date + hour log
         lastIncrementAt = SystemClock.uptimeMillis()
+        malaTimer.onCount(SystemClock.elapsedRealtime())
         queueSave()
-        return completed
+        if (!completed) return CountResult.COUNTED
+
+        // A mala just finished: remember how long it took (mala speed) and check the daily goal.
+        val seconds = ((malaTimer.finishMala() + 500L) / 1000L).toInt()
+        history.addMalaRecord(MalaRecord(LocalDateTime.now().withNano(0).toString(), seconds))
+        val goal = _display.value.dailyGoalMalas
+        return if (goal > 0 && history.summary().todayMalas == goal) CountResult.GOAL else CountResult.MALA
     }
 
     @Volatile
@@ -143,6 +163,7 @@ class CounterStore(context: Context) : CounterActions {
         val sum = history.summary()
         history.addReset(ResetEvent(stamp(now), ResetType.MALA, ring, sum.todayTotal, sum.allTime, sum.allMalas))
         _state.update { it.copy(count = count - ring) }
+        malaTimer.reset()
         flush()
     }
 
@@ -157,6 +178,7 @@ class CounterStore(context: Context) : CounterActions {
         history.addReset(ResetEvent(stamp(now), ResetType.ALL, ring, sum.todayTotal, sum.allTime, sum.allMalas))
         history.markAllReset()
         _state.update { it.copy(count = 0) }
+        malaTimer.reset()
         flush()
     }
 
@@ -186,6 +208,10 @@ class CounterStore(context: Context) : CounterActions {
             .putBoolean(KEY_CALC_LOCK, d.calcLock)
             .putString(KEY_CALC_CODE, d.calcCode)
             .putInt(KEY_STEALTH_HOLD_MS, d.stealthHoldMs)
+            .putInt(KEY_TAP_MIN_GAP, d.tapMinGapMs)
+            .putInt(KEY_DAILY_GOAL, d.dailyGoalMalas)
+            .putInt(KEY_CUSTOM_TOP, d.customTop)
+            .putInt(KEY_CUSTOM_BOTTOM, d.customBottom)
             .apply()
     }
 
@@ -198,7 +224,11 @@ class CounterStore(context: Context) : CounterActions {
 
     private fun writeState() {
         val n = _state.value
-        prefs.edit().putInt(KEY_COUNT, n.count).putBoolean(KEY_STEALTH, n.stealth).apply()
+        prefs.edit()
+            .putInt(KEY_COUNT, n.count)
+            .putBoolean(KEY_STEALTH, n.stealth)
+            .putLong(KEY_MALA_ACTIVE_MS, malaTimer.activeMs)
+            .apply()
     }
 
     private fun loadDisplay() = DisplayState(
@@ -214,6 +244,10 @@ class CounterStore(context: Context) : CounterActions {
         calcLock = prefs.getBoolean(KEY_CALC_LOCK, true),
         calcCode = prefs.getString(KEY_CALC_CODE, DisplayState.DEFAULT_CALC_CODE) ?: DisplayState.DEFAULT_CALC_CODE,
         stealthHoldMs = prefs.getInt(KEY_STEALTH_HOLD_MS, 1000),
+        tapMinGapMs = prefs.getInt(KEY_TAP_MIN_GAP, 0),
+        dailyGoalMalas = prefs.getInt(KEY_DAILY_GOAL, 0),
+        customTop = prefs.getInt(KEY_CUSTOM_TOP, 0xFF4BA591.toInt()),
+        customBottom = prefs.getInt(KEY_CUSTOM_BOTTOM, 0xFF4E5E86.toInt()),
     )
 
     private companion object {
@@ -233,5 +267,10 @@ class CounterStore(context: Context) : CounterActions {
         const val KEY_CALC_CODE = "calc_code"
         const val KEY_STEALTH_HOLD_MS = "stealth_hold_ms"
         const val UNDO_MAX_MS = 400L
+        const val KEY_MALA_ACTIVE_MS = "mala_active_ms"
+        const val KEY_TAP_MIN_GAP = "tap_min_gap"
+        const val KEY_DAILY_GOAL = "daily_goal"
+        const val KEY_CUSTOM_TOP = "custom_top"
+        const val KEY_CUSTOM_BOTTOM = "custom_bottom"
     }
 }

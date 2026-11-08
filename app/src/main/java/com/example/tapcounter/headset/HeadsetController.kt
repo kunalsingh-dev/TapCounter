@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.KeyEvent
+import com.example.tapcounter.counter.CountResult
 import com.example.tapcounter.counter.CounterActions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +35,7 @@ class HeadsetController(
     private val engine = NativeGestureEngine()
     private val feedback = Feedback(context.applicationContext)
     private val volumeFilter = VolumeKeyFilter()
+    private val tapLimiter = TapRateLimiter()
 
     @Volatile
     private var settings = HeadsetSettings()
@@ -68,8 +70,15 @@ class HeadsetController(
 
     // ---- Screen --------------------------------------------------------------------
 
-    /** One counted tap on the screen. */
-    fun countTap() = countOne()
+    /**
+     * One touch on the screen. [minGapMs] is the touch-speed setting: touches closer than that to
+     * the previous counted one are ignored. Returns true if the touch was counted.
+     */
+    fun countTap(minGapMs: Long): Boolean {
+        if (!tapLimiter.allow(SystemClock.uptimeMillis(), minGapMs)) return false
+        countOne()
+        return true
+    }
 
     /** The two-finger-hold combination: toggle stealth with a distinct double buzz. */
     fun stealthComboFromScreen() {
@@ -197,9 +206,15 @@ class HeadsetController(
 
     private fun countOne() {
         val s = settings
-        val completedMala = counter.increment()
-        if (completedMala && s.malaVibration) feedback.mala(true, s.confirmationTick)
-        else feedback.count(s.vibrationEnabled, s.confirmationTick)
+        when (counter.increment()) {
+            CountResult.GOAL ->
+                if (s.malaVibration) feedback.goal(true, s.confirmationTick)
+                else feedback.count(s.vibrationEnabled, s.confirmationTick)
+            CountResult.MALA ->
+                if (s.malaVibration) feedback.mala(true, s.confirmationTick)
+                else feedback.count(s.vibrationEnabled, s.confirmationTick)
+            CountResult.COUNTED -> feedback.count(s.vibrationEnabled, s.confirmationTick)
+        }
     }
 
     private fun dispatch(events: List<GestureEvent>) {

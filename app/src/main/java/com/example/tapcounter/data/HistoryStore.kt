@@ -34,6 +34,10 @@ class HistoryStore(context: Context) {
     /** Newest reset first. */
     val resets: StateFlow<List<ResetEvent>> = _resets.asStateFlow()
 
+    private val _malas = MutableStateFlow(loadMalas())
+    /** Durations of finished malas, newest first (latest 300). */
+    val malas: StateFlow<List<MalaRecord>> = _malas.asStateFlow()
+
     private val _baseline = MutableStateFlow(loadBaseline())
     val baseline: StateFlow<Baseline> = _baseline.asStateFlow()
 
@@ -65,6 +69,11 @@ class HistoryStore(context: Context) {
         _days.value = list.map { if (it.date == l.date) updated else it }
         dirtyDates.add(l.date)
         queueSave()
+    }
+
+    fun addMalaRecord(record: MalaRecord) {
+        prefs.edit().putString("$MALA_PREFIX${System.currentTimeMillis()}", MalaRecordCodec.encode(record)).apply()
+        _malas.value = (listOf(record) + _malas.value).take(MAX_MALA_RECORDS)
     }
 
     fun summary(today: String = LocalDate.now().toString()): Summary =
@@ -121,12 +130,21 @@ class HistoryStore(context: Context) {
             if (key.startsWith(RESET_PREFIX) && value is String) ResetCodec.decode(value) else null
         }.sortedByDescending { it.at }
 
+    private fun loadMalas(): List<MalaRecord> =
+        prefs.all.entries
+            .filter { it.key.startsWith(MALA_PREFIX) && it.value is String }
+            .sortedByDescending { it.key.removePrefix(MALA_PREFIX).toLongOrNull() ?: 0L }
+            .take(MAX_MALA_RECORDS)
+            .mapNotNull { MalaRecordCodec.decode(it.value as String) }
+
     private fun loadBaseline(): Baseline =
         prefs.getString(KEY_BASELINE, null)?.let { BaselineCodec.decode(it) } ?: Baseline()
 
     private companion object {
         const val DAY_PREFIX = "d:"
         const val RESET_PREFIX = "r:"
+        const val MALA_PREFIX = "m:"
+        const val MAX_MALA_RECORDS = 300
         const val KEY_BASELINE = "baseline"
         const val SAVE_DELAY_MS = 250L
     }

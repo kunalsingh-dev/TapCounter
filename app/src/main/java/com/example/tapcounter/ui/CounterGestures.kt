@@ -23,7 +23,7 @@ private const val UNDO_WINDOW_MS = 300L
 suspend fun PointerInputScope.detectCounterGestures(
     tapEnabled: Boolean,
     comboHoldMs: Long,
-    onTap: () -> Unit,
+    onTap: () -> Boolean,
     onUndo: () -> Unit,
     onCombo: () -> Unit,
 ) {
@@ -31,8 +31,7 @@ suspend fun PointerInputScope.detectCounterGestures(
         val first = awaitFirstDown(requireUnconsumed = true)
         var counted = false
         if (tapEnabled) {
-            onTap() // instant
-            counted = true
+            counted = onTap() // instant; false when the touch-speed limit ignored it
         }
         var undone = false
         var comboFired = false

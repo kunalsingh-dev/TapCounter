@@ -39,6 +39,12 @@ class Feedback(context: Context) {
         if (tick) playTick(700)
     }
 
+    /** Rising long pattern: today's goal reached. */
+    fun goal(vibrate: Boolean, tick: Boolean) {
+        if (vibrate) vibrate(VibrationEffect.createWaveform(longArrayOf(0, 200, 100, 200, 100, 200, 100, 700), -1))
+        if (tick) playTick(1000)
+    }
+
     /** Distinct double buzz: stealth on/off. */
     fun stealthForceOn(vibrate: Boolean, tick: Boolean) {
         if (vibrate) {

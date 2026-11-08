@@ -69,3 +69,12 @@ Model, key names + codes from Learn mode, which gestures worked, whether it need
 - [ ] Reset ALL malas: ring, today, all-time and malas read 0; History keeps the days and shows the reset with date+time and old numbers.
 - [ ] Counting after Reset ALL starts from 0 again.
 - [ ] Background themes change the screen colours; background picture can be added and removed.
+
+## J. v5 additions
+- [ ] Settings > Touch speed: Slow ignores touches closer than 0.4 s; Turbo counts every touch.
+- [ ] A touch ignored by the speed limit does not count and does not buzz.
+- [ ] Background colour picker: palette dots and sliders change the screen colours; the last swatch selects Custom.
+- [ ] Daily goal 2 malas: info box shows Goal 0/2; finishing the 2nd mala today gives the rising buzz once and a tick.
+- [ ] After a mala, "Last mala" appears under the ring; Analytics > Mala speed lists it.
+- [ ] Analytics: 7-day and 30-day bars match History; hour chart peaks at the hours you counted; streak is right.
+- [ ] Reset ALL does not delete Analytics data (history is kept).

@@ -42,7 +42,13 @@ To change code later on the phone: edit files in the GitHub web editor (or in Te
   hold Play/Pause ~1.2 s. In stealth the screen is dimmed to the lowest level, the time bar is hidden, and a tap still counts.
 * **Calculator disguise:** leaving stealth (and starting the app) shows a working calculator. Type your secret code
   (default **1234**, change it in Settings) and press = to open the counter. Menu ⋮ -> Hide also shows the calculator.
-* **Backgrounds:** Settings -> Background: 6 colour themes and an optional picture.
+* **Backgrounds:** Settings -> Background: 6 colour themes, a CUSTOM colour picker (top + bottom colour: palette dots or
+  hue/saturation/brightness sliders) and an optional picture.
+* **Touch speed:** Settings -> Counting: Slow / Normal / Fast / Turbo or a slider (0-800 ms). It ignores screen touches
+  closer together than that. Turbo (default) counts every touch.
+* **Daily goal:** Settings -> Counting (0 = off). The info box shows progress; reaching it gives a rising buzz.
+* **Mala speed:** the time each mala took (breaks over 2 min are not counted). Shown under the ring and in Analytics.
+* **Analytics:** menu -> Analytics: bar charts for 7/30 days and hour of day, best day, average, streak, mala speed, goal.
 * **Resets:** Settings -> Reset: 'current mala' (ring to 0, everything else kept) or 'ALL malas' (all-time to 0). Both are
   logged with date and time in History.
 * **No decrement, no reset on the main screen.** Reset exists only in Settings → Danger zone (confirmed). Headphones and
