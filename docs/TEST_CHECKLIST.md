@@ -78,3 +78,20 @@ Model, key names + codes from Learn mode, which gestures worked, whether it need
 - [ ] After a mala, "Last mala" appears under the ring; Analytics > Mala speed lists it.
 - [ ] Analytics: 7-day and 30-day bars match History; hour chart peaks at the hours you counted; streak is right.
 - [ ] Reset ALL does not delete Analytics data (history is kept).
+
+## K. Final version: face unlock
+- [ ] Settings > Face unlock > Set up: allow camera, look at the screen; 8 samples fill; "Saved".
+- [ ] Test: your own similarity is clearly above the "needs" value; someone else's stays clearly lower.
+- [ ] Turn Face unlock ON, close the app completely, reopen: calculator first, then the counter opens by itself within ~2 s.
+- [ ] Hand the phone to someone else (face visible): the calculator stays. Typing 1234 = still works as the backup.
+- [ ] You and another person both in view: calculator stays (2+ faces).
+- [ ] Counter open, another person steps in front of the camera: it switches to the calculator.
+- [ ] Dim room, glasses on/off, different angle: if you are missed, lower strictness a little and re-test.
+- [ ] Deny camera permission: calculator + code still works, nothing crashes.
+- [ ] Delete my face data: face unlock turns off.
+
+## L. Final version: layouts
+- [ ] Portrait phone, small phone, landscape, split-screen: nothing overlaps or is cut off on Counter, Settings, History, Analytics, Calculator.
+- [ ] System font size set to Large: texts wrap, buttons stay usable.
+- [ ] History > Days: tap a day for its hourly chart. History > Resets: both reset cards and the dated log read cleanly.
+- [ ] Analytics: 7 and 30 day bars with labels, stat tiles, hour chart, mala speed, goal.

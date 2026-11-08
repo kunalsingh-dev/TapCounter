@@ -1,21 +1,13 @@
 package com.example.tapcounter.ui
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -47,43 +39,26 @@ fun LearnScreen(app: TapCounterApp, onDone: () -> Unit) {
         onDispose { controller.stopLearn() }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        TextButton(onClick = onDone) { Text("← Back") }
-        Text("Press a headphone button", style = MaterialTheme.typography.headlineSmall)
-
+    ScreenPage("Press a headphone button", onDone) {
         if (!status.serviceRunning) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Headset control isn't running, so button presses can't be seen.")
-                    Button(onClick = enable) { Text("Start headset control") }
-                }
+            SectionCard("Headset control is off") {
+                Text("Button presses can't be seen until headset control is running.")
+                Button(onClick = enable) { Text("Start headset control") }
             }
         }
 
         val captured = learn.captured
         if (captured == null) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CircularProgressIndicator()
-                Text("Waiting… press ONE button on your headset once.")
-            }
-            Text(
-                "The next key press is captured here and not counted. Works even with the hardware lock on.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-        } else {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Captured", style = MaterialTheme.typography.labelMedium)
-                    Text(captured.name, style = MaterialTheme.typography.titleLarge)
-                    Text("keycode ${captured.keyCode}")
+            SectionCard("Waiting for a button", "Press ONE button on your headset once. It is captured here and not counted. Works even with the hardware lock on.") {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CircularProgressIndicator()
+                    Text("Listening…")
                 }
+            }
+        } else {
+            SectionCard("Captured") {
+                Text(captured.name, style = MaterialTheme.typography.titleLarge)
+                Text("keycode ${captured.keyCode}")
             }
 
             val draft = remember(captured.keyCode) {
@@ -91,31 +66,28 @@ fun LearnScreen(app: TapCounterApp, onDone: () -> Unit) {
                     Gesture.entries.forEach { g -> put(g, settings.bindings[captured.keyCode to g] ?: Action.NONE) }
                 }
             }
-            Text("Assign an action to each gesture:", style = MaterialTheme.typography.titleMedium)
-            Gesture.entries.forEach { g ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(g.label())
-                    ActionPicker(draft[g] ?: Action.NONE) { draft[g] = it }
+            SectionCard("What should each gesture do?") {
+                Gesture.entries.forEach { g ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(g.label(), modifier = Modifier.weight(1f))
+                        ActionPicker(draft[g] ?: Action.NONE) { draft[g] = it }
+                    }
                 }
             }
             Button(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
                     scope.launch {
-                        Gesture.entries.forEach { g ->
-                            repo.setBinding(captured.keyCode, g, draft[g] ?: Action.NONE)
-                        }
+                        Gesture.entries.forEach { g -> repo.setBinding(captured.keyCode, g, draft[g] ?: Action.NONE) }
                         onDone()
                     }
                 },
             ) { Text("Save") }
-            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { controller.startLearn() }) {
-                Text("Capture a different button")
-            }
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { controller.startLearn() }) { Text("Capture a different button") }
         }
     }
 }

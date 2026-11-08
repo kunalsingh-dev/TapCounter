@@ -11,32 +11,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,8 +39,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.TapCounterApp
@@ -62,323 +55,247 @@ import java.io.File
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit) {
+fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, onFace: () -> Unit) {
     val context = LocalContext.current
     val repo = app.headsetSettings
     val store = app.counterStore
     val s by repo.settings.collectAsStateWithLifecycle(initialValue = HeadsetSettings())
     val d by store.display.collectAsStateWithLifecycle()
+    val faceTemplates by app.faceStore.templates.collectAsStateWithLifecycle()
+    val faceEnrolled = faceTemplates.isNotEmpty()
     val scope = rememberCoroutineScope()
-    var confirmMala by remember { mutableStateOf(false) }
-    var confirmAll by remember { mutableStateOf(false) }
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null && importGodImage(context, uri, store.godImageFile)) {
+    val godPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null && importPicture(context, uri, store.godImageFile)) {
             store.updateDisplay { it.copy(imageVersion = it.imageVersion + 1) }
         }
     }
-
     val bgPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null && importGodImage(context, uri, store.bgImageFile)) {
+        if (uri != null && importPicture(context, uri, store.bgImageFile)) {
             store.updateDisplay { it.copy(bgImageVersion = it.bgImageVersion + 1) }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        TextButton(onClick = onBack) { Text("← Back") }
-        Text("Settings", style = MaterialTheme.typography.headlineSmall)
+    ScreenPage("Settings", onBack) {
 
-        // ---------------- Display ----------------
-        Text("God name and picture", style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(
-            value = d.godName,
-            onValueChange = { v -> store.updateDisplay { it.copy(godName = v) } },
-            label = { Text("Name (new line = Enter)") },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Colour")
-            GodColors.forEachIndexed { i, color ->
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                        .border(3.dp, if (i == d.godColorIndex) Color(0xFF8AB4F8) else Color.Gray, CircleShape)
-                        .clickable { store.updateDisplay { it.copy(godColorIndex = i) } },
-                )
-            }
-        }
-        IntSlider("Text size", d.godSizeSp, 28..80, "sp") { v -> store.updateDisplay { it.copy(godSizeSp = v) } }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
-                picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) { Text("Add picture") }
-            OutlinedButton(onClick = {
-                store.godImageFile.delete()
-                store.updateDisplay { it.copy(imageVersion = it.imageVersion + 1) }
-            }) { Text("Remove picture") }
-        }
-
-        // ---------------- Background ----------------
-        Text("Background", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            BgThemes.forEachIndexed { i, t ->
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Brush.verticalGradient(listOf(t.top0, t.bottom0)))
-                        .border(3.dp, if (i == d.bgTheme) Color(0xFF8AB4F8) else Color.Gray, CircleShape)
-                        .clickable { store.updateDisplay { it.copy(bgTheme = i) } },
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Brush.verticalGradient(listOf(Color(d.customTop), Color(d.customBottom))))
-                    .border(3.dp, if (d.bgTheme >= BgThemes.size) Color(0xFF8AB4F8) else Color.Gray, CircleShape)
-                    .clickable { store.updateDisplay { it.copy(bgTheme = BgThemes.size) } },
+        // ---------------- Look ----------------
+        SectionCard("God name and picture") {
+            OutlinedTextField(
+                value = d.godName,
+                onValueChange = { v -> store.updateDisplay { it.copy(godName = v) } },
+                label = { Text("Name (Enter = new line)") },
+                modifier = Modifier.fillMaxWidth(),
             )
+            Text("Text colour", style = MaterialTheme.typography.labelMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                GodColors.forEachIndexed { i, color ->
+                    Swatch(
+                        selected = i == d.godColorIndex,
+                        modifier = Modifier.weight(1f),
+                        brush = Brush.verticalGradient(listOf(color, color)),
+                    ) { store.updateDisplay { it.copy(godColorIndex = i) } }
+                }
+            }
+            IntSlider("Text size", d.godSizeSp, 28..80, "sp") { v -> store.updateDisplay { it.copy(godSizeSp = v) } }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { godPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                    Text("Add picture")
+                }
+                OutlinedButton(onClick = {
+                    store.godImageFile.delete()
+                    store.updateDisplay { it.copy(imageVersion = it.imageVersion + 1) }
+                }) { Text("Remove") }
+            }
         }
-        Text(
-            "Theme: " + if (d.bgTheme >= BgThemes.size) "Custom (last circle)" else BgThemes[d.bgTheme.coerceIn(0, BgThemes.lastIndex)].name,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Text("Colour picker (changing a colour switches to the Custom theme)", style = MaterialTheme.typography.titleSmall)
-        ColorPicker("Top colour", d.customTop) { c -> store.updateDisplay { it.copy(customTop = c, bgTheme = BgThemes.size) } }
-        ColorPicker("Bottom colour", d.customBottom) { c -> store.updateDisplay { it.copy(customBottom = c, bgTheme = BgThemes.size) } }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
-                bgPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) { Text("Background picture") }
-            OutlinedButton(onClick = {
-                store.bgImageFile.delete()
-                store.updateDisplay { it.copy(bgImageVersion = it.bgImageVersion + 1) }
-            }) { Text("Remove") }
+
+        SectionCard("Background", "Pick a theme, or the last circle for your own colours.") {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                BgThemes.forEachIndexed { i, t ->
+                    Swatch(
+                        selected = i == d.bgTheme,
+                        modifier = Modifier.weight(1f),
+                        brush = Brush.verticalGradient(listOf(t.top0, t.bottom0)),
+                    ) { store.updateDisplay { it.copy(bgTheme = i) } }
+                }
+                Swatch(
+                    selected = d.bgTheme >= BgThemes.size,
+                    modifier = Modifier.weight(1f),
+                    brush = Brush.verticalGradient(listOf(Color(d.customTop), Color(d.customBottom))),
+                ) { store.updateDisplay { it.copy(bgTheme = BgThemes.size) } }
+            }
+            Text(
+                "Theme: " + if (d.bgTheme >= BgThemes.size) "Custom" else BgThemes[d.bgTheme.coerceIn(0, BgThemes.lastIndex)].name,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            ColorPicker("Custom top colour", d.customTop) { c -> store.updateDisplay { it.copy(customTop = c, bgTheme = BgThemes.size) } }
+            ColorPicker("Custom bottom colour", d.customBottom) { c -> store.updateDisplay { it.copy(customBottom = c, bgTheme = BgThemes.size) } }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { bgPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
+                    Text("Background picture")
+                }
+                OutlinedButton(onClick = {
+                    store.bgImageFile.delete()
+                    store.updateDisplay { it.copy(bgImageVersion = it.bgImageVersion + 1) }
+                }) { Text("Remove") }
+            }
         }
 
         // ---------------- Counting ----------------
-        Text("Counting", style = MaterialTheme.typography.titleMedium)
-        SwitchRow("Tap anywhere on the screen to count", d.tapAnywhere) { v ->
-            store.updateDisplay { it.copy(tapAnywhere = v) }
-        }
-        Text("Touch speed")
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-            listOf("Slow" to 400, "Normal" to 200, "Fast" to 100, "Turbo" to 0).forEach { (name, gap) ->
-                if (d.tapMinGapMs == gap) {
-                    Button(onClick = {}, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 4.dp)) { Text(name) }
-                } else {
-                    OutlinedButton(
-                        onClick = { store.updateDisplay { it.copy(tapMinGapMs = gap) } },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp),
-                    ) { Text(name) }
-                }
+        SectionCard("Counting") {
+            SwitchRow("Tap anywhere on the screen to count", d.tapAnywhere) { v -> store.updateDisplay { it.copy(tapAnywhere = v) } }
+
+            Text("Touch speed", style = MaterialTheme.typography.labelMedium)
+            val gaps = listOf(400, 200, 100, 0)
+            SegmentedControl(listOf("Slow", "Normal", "Fast", "Turbo"), gaps.indexOf(d.tapMinGapMs)) { i ->
+                store.updateDisplay { it.copy(tapMinGapMs = gaps[i]) }
             }
-        }
-        IntSlider("Minimum time between counted taps", d.tapMinGapMs, 0..800, "ms") { v ->
-            store.updateDisplay { it.copy(tapMinGapMs = v) }
-        }
-        Text(
-            "Turbo counts every touch. Slow ignores touches closer than 0.4 s, which stops accidental double touches. Applies to screen taps.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        IntSlider("Daily goal (0 = off)", d.dailyGoalMalas, 0..30, "malas") { v ->
-            store.updateDisplay { it.copy(dailyGoalMalas = v) }
-        }
-        Text("Beads per mala")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            HeadsetSettings.MALA_SIZES.forEach { size ->
-                if (size == s.malaSize) Button(onClick = {}) { Text("$size") }
-                else OutlinedButton(onClick = { scope.launch { repo.setMalaSize(size) } }) { Text("$size") }
+            IntSlider("Minimum time between counted taps", d.tapMinGapMs, 0..800, "ms") { v -> store.updateDisplay { it.copy(tapMinGapMs = v) } }
+            Text(
+                "Turbo counts every touch. Slow ignores touches closer than 0.4 s, which stops accidental double touches. Applies to screen taps.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            Text("Beads per mala", style = MaterialTheme.typography.labelMedium)
+            SegmentedControl(HeadsetSettings.MALA_SIZES.map { it.toString() }, HeadsetSettings.MALA_SIZES.indexOf(s.malaSize)) { i ->
+                scope.launch { repo.setMalaSize(HeadsetSettings.MALA_SIZES[i]) }
             }
-        }
-        SwitchRow("Phone volume buttons count", s.volumeKeysCount) { scope.launch { repo.setVolumeKeysCount(it) } }
-        Text(
-            "While headset control is running, the volume keys count +1 (also with the screen off) and do not change " +
-                "the media volume. A key that is held down counts once; press again for the next count. " +
-                "Turn this off to get normal volume keys back. Some phones don't allow this with the screen off.",
-            style = MaterialTheme.typography.bodySmall,
-        )
+            IntSlider("Daily goal (0 = off)", d.dailyGoalMalas, 0..30, "malas") { v -> store.updateDisplay { it.copy(dailyGoalMalas = v) } }
 
-        // ---------------- Stealth ----------------
-        Text("Stealth", style = MaterialTheme.typography.titleMedium)
-        Text(
-            "Enter and leave: hold FOUR or FIVE fingers on the screen for the time set below (default 1 second). " +
-                "Leaving stealth shows the calculator (see Calculator disguise). " +
-                "On headphones: hold the Play/Pause button about 1.2 s (changeable below). " +
-                "In stealth the screen is dimmed and black, a tap still counts.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        IntSlider("Stealth brightness", d.stealthBrightnessPct, 1..30, "%") { v ->
-            store.updateDisplay { it.copy(stealthBrightnessPct = v) }
-        }
-        SwitchRow("Hide time bar (status bar) in stealth", d.hideBars) { v -> store.updateDisplay { it.copy(hideBars = v) } }
-
-        IntSlider("Hold time for 4-5 fingers (stealth)", d.stealthHoldMs, 300..5000, "ms") { v ->
-            store.updateDisplay { it.copy(stealthHoldMs = v) }
+            SwitchRow("Phone volume buttons count", s.volumeKeysCount) { scope.launch { repo.setVolumeKeysCount(it) } }
+            Text(
+                "While headset control runs, the volume keys count +1 (also with the screen off) and do not change the media volume. " +
+                    "A key held down counts once. Turn this off to get normal volume keys back. Some phones don't allow it with the screen off.",
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
 
-        // ---------------- Calculator disguise ----------------
-        Text("Calculator disguise", style = MaterialTheme.typography.titleMedium)
-        SwitchRow("Show a working calculator when I leave stealth and when the app starts", d.calcLock) { v ->
-            store.updateDisplay { it.copy(calcLock = v) }
+        // ---------------- Stealth + disguise ----------------
+        SectionCard(
+            "Stealth",
+            "Hold FOUR or FIVE fingers on the screen to enter and leave. On headphones, hold Play/Pause. In stealth the screen is dimmed and black; a tap still counts.",
+        ) {
+            IntSlider("Finger-hold time", d.stealthHoldMs, 300..5000, "ms") { v -> store.updateDisplay { it.copy(stealthHoldMs = v) } }
+            IntSlider("Brightness in stealth", d.stealthBrightnessPct, 1..30, "%") { v -> store.updateDisplay { it.copy(stealthBrightnessPct = v) } }
+            SwitchRow("Hide the time bar (status bar) in stealth", d.hideBars) { v -> store.updateDisplay { it.copy(hideBars = v) } }
         }
-        var codeDraft by remember(d.calcCode) { mutableStateOf(d.calcCode) }
-        OutlinedTextField(
-            value = codeDraft,
-            onValueChange = { v ->
-                val digits = v.filter { it.isDigit() }.take(8)
-                codeDraft = digits
-                if (digits.length >= 4) store.updateDisplay { it.copy(calcCode = digits) }
-            },
-            label = { Text("Secret code (4 to 8 digits)") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            "On the calculator, type this code and press = to open the counter. Anything else just calculates. " +
-                "The default is 1234. Remember it: without the code you cannot open the counter. " +
-                "Counting by headphones, volume keys and the menu item Hide keep working while the calculator is shown.",
-            style = MaterialTheme.typography.bodySmall,
-        )
 
-        // ---------------- Vibration ----------------
-        Text("Vibration", style = MaterialTheme.typography.titleMedium)
-        SwitchRow("Short buzz on every count", s.vibrationEnabled) { scope.launch { repo.setVibrationEnabled(it) } }
-        SwitchRow("Long triple buzz when a mala is complete", s.malaVibration) { scope.launch { repo.setMalaVibration(it) } }
-        SwitchRow("Confirmation tick through headset", s.confirmationTick) { scope.launch { repo.setConfirmationTick(it) } }
+        SectionCard(
+            "Calculator disguise",
+            "Leaving stealth, and starting the app, shows a working calculator. Type your code and press = to open the counter.",
+        ) {
+            SwitchRow("Show the calculator", d.calcLock) { v -> store.updateDisplay { it.copy(calcLock = v, faceUnlock = d.faceUnlock && v) } }
+            var codeDraft by remember(d.calcCode) { mutableStateOf(d.calcCode) }
+            OutlinedTextField(
+                value = codeDraft,
+                onValueChange = { v ->
+                    val digits = v.filter { it.isDigit() }.take(8)
+                    codeDraft = digits
+                    if (digits.length >= 4) store.updateDisplay { it.copy(calcCode = digits) }
+                },
+                label = { Text("Secret code (4 to 8 digits)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                "Default 1234. Remember it: without the code (or your face) you cannot open the counter. " +
+                    "Headphone and volume counting keep working while the calculator is shown.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
+        SectionCard(
+            "Face unlock",
+            "Needs the calculator. The app opens on the calculator and quietly looks for YOUR face: if it sees you, the counter opens. Another face keeps the calculator, and while the counter is open another face switches back to it. The camera only runs while the app is on screen.",
+        ) {
+            Button(onClick = onFace, modifier = Modifier.fillMaxWidth()) {
+                Text(if (faceEnrolled) "Test / re-enroll my face" else "Set up face unlock")
+            }
+            SwitchRow("Use face unlock", d.faceUnlock && faceEnrolled && d.calcLock) { on ->
+                if (on && !faceEnrolled) onFace() else store.updateDisplay { it.copy(faceUnlock = on, calcLock = it.calcLock || on) }
+            }
+            SwitchRow("Counter open: another face switches to the calculator", d.faceWatch) { v -> store.updateDisplay { it.copy(faceWatch = v) } }
+            SwitchRow("Two or more faces in view count as a stranger", d.faceLockOnMultiple) { v -> store.updateDisplay { it.copy(faceLockOnMultiple = v) } }
+            SwitchRow("Anti-photo check: blink once to unlock", d.faceRequireBlink) { v -> store.updateDisplay { it.copy(faceRequireBlink = v) } }
+            IntSlider("Match strictness", d.faceThresholdPct, 35..85, "%") { v -> store.updateDisplay { it.copy(faceThresholdPct = v) } }
+        }
+
+        // ---------------- Feedback ----------------
+        SectionCard("Vibration") {
+            SwitchRow("Short buzz on every count", s.vibrationEnabled) { scope.launch { repo.setVibrationEnabled(it) } }
+            SwitchRow("Long triple buzz when a mala is complete", s.malaVibration) { scope.launch { repo.setMalaVibration(it) } }
+            SwitchRow("Confirmation tick through the headset", s.confirmationTick) { scope.launch { repo.setConfirmationTick(it) } }
+        }
 
         // ---------------- Headset ----------------
-        Text("Headset / Bluetooth", style = MaterialTheme.typography.titleMedium)
-        SwitchRow("Hardware lock (ignore headphone + volume buttons)", s.hardwareLock) {
-            scope.launch { repo.setHardwareLock(it) }
-        }
-        SwitchRow("Keep-alive silent audio", s.keepAliveAudio) { scope.launch { repo.setKeepAliveAudio(it) } }
-        Text(
-            "Keep-alive plays an inaudible looping sound so Android keeps sending button presses to this app. " +
-                "Trade-off: the Bluetooth link stays in streaming mode (a little more battery). Turn it off if your headset works without it.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        TimingSlider("Debounce", s.debounceMs, HeadsetSettings.DEBOUNCE_RANGE) {
-            scope.launch { repo.setTiming(it, s.multiTapWindowMs, s.longPressMs) }
-        }
-        TimingSlider("Hold time (stealth on headphones)", s.longPressMs, HeadsetSettings.LONG_PRESS_RANGE) {
-            scope.launch { repo.setTiming(s.debounceMs, s.multiTapWindowMs, it) }
-        }
-        TimingSlider("Double/triple-click window", s.multiTapWindowMs, HeadsetSettings.MULTI_TAP_RANGE) {
-            scope.launch { repo.setTiming(s.debounceMs, it, s.longPressMs) }
-        }
-        Text(
-            "Single clicks count instantly as long as no double or triple click is assigned to that button.",
-            style = MaterialTheme.typography.bodySmall,
-        )
+        SectionCard("Headset / Bluetooth") {
+            SwitchRow("Hardware lock (ignore headphone and volume buttons)", s.hardwareLock) { scope.launch { repo.setHardwareLock(it) } }
+            SwitchRow("Keep-alive silent audio", s.keepAliveAudio) { scope.launch { repo.setKeepAliveAudio(it) } }
+            Text(
+                "Keep-alive plays an inaudible loop so Android keeps sending button presses to this app. The Bluetooth link stays in streaming mode, which costs a little battery. Turn it off if your headset works without it.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            TimingSlider("Debounce", s.debounceMs, HeadsetSettings.DEBOUNCE_RANGE) { scope.launch { repo.setTiming(it, s.multiTapWindowMs, s.longPressMs) } }
+            TimingSlider("Hold time (stealth on headphones)", s.longPressMs, HeadsetSettings.LONG_PRESS_RANGE) { scope.launch { repo.setTiming(s.debounceMs, s.multiTapWindowMs, it) } }
+            TimingSlider("Double/triple-click window", s.multiTapWindowMs, HeadsetSettings.MULTI_TAP_RANGE) { scope.launch { repo.setTiming(s.debounceMs, it, s.longPressMs) } }
+            Text("Single clicks count instantly while no double or triple click is assigned to that button.", style = MaterialTheme.typography.bodySmall)
 
-        Button(onClick = onLearn, modifier = Modifier.fillMaxWidth()) { Text("Press a headphone button (Learn mode)") }
+            Button(onClick = onLearn, modifier = Modifier.fillMaxWidth()) { Text("Press a headphone button (Learn mode)") }
 
-        val keys = s.bindings.keys.map { it.first }.distinct().sorted()
-        if (keys.isEmpty()) Text("No buttons mapped yet. Use Learn mode.")
-        keys.forEach { key ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("${HeadsetKeys.name(key)} ($key)", style = MaterialTheme.typography.titleSmall)
-                    Gesture.entries.forEach { g ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(g.label())
-                            ActionPicker(s.bindings[key to g] ?: Action.NONE) { action ->
-                                scope.launch { repo.setBinding(key, g, action) }
+            val keys = s.bindings.keys.map { it.first }.distinct().sorted()
+            if (keys.isEmpty()) Text("No buttons mapped yet. Use Learn mode.")
+            keys.forEach { key ->
+                Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("${HeadsetKeys.name(key)} ($key)", style = MaterialTheme.typography.titleSmall)
+                        Gesture.entries.forEach { g ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(g.label(), modifier = Modifier.weight(1f))
+                                ActionPicker(s.bindings[key to g] ?: Action.NONE) { action -> scope.launch { repo.setBinding(key, g, action) } }
                             }
                         }
+                        TextButton(onClick = { scope.launch { repo.clearBindingsForKey(key) } }) { Text("Remove this button") }
                     }
-                    TextButton(onClick = { scope.launch { repo.clearBindingsForKey(key) } }) { Text("Remove this button") }
                 }
             }
-        }
-        OutlinedButton(onClick = { scope.launch { repo.resetBindingsToDefaults() } }) { Text("Restore default mapping") }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Honest limits", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    "• Volume buttons on a Bluetooth headset change the headset's own volume and are NOT sent to the phone, so they can't count.\n" +
-                        "• Reliable on most headsets: Play/Pause (or the single hook button), Next, Previous.\n" +
-                        "• Many earbuds handle double/triple taps and long press themselves (assistant, noise control) and send nothing or Next/Previous. Use Learn mode.\n" +
-                        "• Another media app playing can take the buttons: use Re-take control.\n" +
-                        "• Battery savers on some phones stop the service: set this app to Unrestricted battery.",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
+            OutlinedButton(onClick = { scope.launch { repo.resetBindingsToDefaults() } }) { Text("Restore default mapping") }
         }
 
-        // ---------------- Reset (only here, never on the main screen, never from headphones) ----------------
-        Text("Reset", style = MaterialTheme.typography.titleMedium)
-        OutlinedButton(onClick = { confirmMala = true }) { Text("Reset current mala") }
-        Text(
-            "Ring goes back to 0. Completed malas, today's and all-time counts and your history stay saved.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        OutlinedButton(onClick = { confirmAll = true }) { Text("Reset ALL malas (all-time to 0)") }
-        Text(
-            "Ring, today's numbers, all-time count and all malas go to 0. The numbers are saved in the History reset log " +
-                "with date and time, and your day-by-day history stays saved.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-    }
+        // ---------------- Reset ----------------
+        SectionCard("Reset", "Only possible here and in History. Headphones and volume keys can never reset anything.") {
+            ResetControls(app)
+        }
 
-    if (confirmMala) {
-        AlertDialog(
-            onDismissRequest = { confirmMala = false },
-            title = { Text("Reset current mala?") },
-            text = { Text("The ring goes back to 0. Everything else stays saved. This is logged with date and time.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    store.resetCurrentMala()
-                    confirmMala = false
-                }) { Text("Reset mala") }
-            },
-            dismissButton = { TextButton(onClick = { confirmMala = false }) { Text("Cancel") } },
-        )
-    }
-    if (confirmAll) {
-        AlertDialog(
-            onDismissRequest = { confirmAll = false },
-            title = { Text("Reset ALL malas?") },
-            text = { Text("All-time count, malas and today's numbers go to 0. The old numbers are saved in the History reset log with date and time.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    store.resetAll()
-                    confirmAll = false
-                }) { Text("Reset all") }
-            },
-            dismissButton = { TextButton(onClick = { confirmAll = false }) { Text("Cancel") } },
-        )
+        SectionCard("Honest limits") {
+            Text(
+                "• Volume buttons on a Bluetooth headset change the headset's own volume and are NOT sent to the phone, so they can't count.\n" +
+                    "• Fingerprint-sensor presses can't be read by apps.\n" +
+                    "• Reliable on most headsets: Play/Pause (or the hook button), Next, Previous.\n" +
+                    "• Many earbuds handle double/triple taps and long press themselves and send nothing or Next/Previous. Use Learn mode.\n" +
+                    "• Another media app playing can take the buttons: use Re-take control.\n" +
+                    "• Face unlock is a convenience disguise, not bank-grade security.\n" +
+                    "• Battery savers on some phones stop the service: set this app to Unrestricted battery.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
 }
 
+/** Round colour chip that grows with the available width. */
 @Composable
-private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
+private fun Swatch(selected: Boolean, modifier: Modifier, brush: Brush, onClick: () -> Unit) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(CircleShape)
+            .background(brush)
+            .border(3.dp, if (selected) Color(0xFF8AB4F8) else Color.Gray, CircleShape)
+            .clickable(onClick = onClick),
+    )
 }
 
 @Composable
@@ -395,20 +312,6 @@ private fun TimingSlider(label: String, value: Long, range: LongRange, onCommit:
     }
 }
 
-@Composable
-private fun IntSlider(label: String, value: Int, range: IntRange, unit: String, onCommit: (Int) -> Unit) {
-    var local by remember(value) { mutableFloatStateOf(value.toFloat()) }
-    Column {
-        Text("$label: ${local.toInt()} $unit")
-        Slider(
-            value = local,
-            onValueChange = { local = it },
-            valueRange = range.first.toFloat()..range.last.toFloat(),
-            onValueChangeFinished = { onCommit(local.toInt()) },
-        )
-    }
-}
-
 private val PaletteColors = listOf(
     0xFFE53935, 0xFFFB8C00, 0xFFFDD835, 0xFF43A047, 0xFF00ACC1, 0xFF1E88E5,
     0xFF3949AB, 0xFF8E24AA, 0xFFD81B60, 0xFF6D4C41, 0xFF455A64, 0xFF111111,
@@ -420,23 +323,18 @@ private fun ColorPicker(title: String, argb: Int, onChange: (Int) -> Unit) {
     val hsv = remember(argb) { FloatArray(3).also { android.graphics.Color.colorToHSV(argb, it) } }
     var hue by remember(argb) { mutableFloatStateOf(hsv[0]) }
     var sat by remember(argb) { mutableFloatStateOf(hsv[1]) }
-    var value by remember(argb) { mutableFloatStateOf(hsv[2]) }
-    fun current() = Color.hsv(hue.coerceIn(0f, 360f), sat.coerceIn(0f, 1f), value.coerceIn(0f, 1f))
+    var bright by remember(argb) { mutableFloatStateOf(hsv[2]) }
+    fun current() = Color.hsv(hue.coerceIn(0f, 360f), sat.coerceIn(0f, 1f), bright.coerceIn(0f, 1f))
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(32.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(current()),
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(title, style = MaterialTheme.typography.labelMedium)
+        Box(modifier = Modifier.fillMaxWidth().height(32.dp).clip(RoundedCornerShape(8.dp)).background(current()))
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
             PaletteColors.forEach { c ->
                 Box(
                     modifier = Modifier
-                        .size(20.dp)
+                        .weight(1f)
+                        .aspectRatio(1f)
                         .clip(CircleShape)
                         .background(c)
                         .clickable { onChange(c.toArgb()) },
@@ -448,12 +346,12 @@ private fun ColorPicker(title: String, argb: Int, onChange: (Int) -> Unit) {
         Text("Saturation", style = MaterialTheme.typography.labelSmall)
         Slider(value = sat, onValueChange = { sat = it }, valueRange = 0f..1f, onValueChangeFinished = { onChange(current().toArgb()) })
         Text("Brightness", style = MaterialTheme.typography.labelSmall)
-        Slider(value = value, onValueChange = { value = it }, valueRange = 0f..1f, onValueChangeFinished = { onChange(current().toArgb()) })
+        Slider(value = bright, onValueChange = { bright = it }, valueRange = 0f..1f, onValueChangeFinished = { onChange(current().toArgb()) })
     }
 }
 
 /** Copies the chosen picture into app storage (downsized) so it keeps working after the picker closes. */
-private fun importGodImage(context: Context, uri: Uri, target: File): Boolean {
+private fun importPicture(context: Context, uri: Uri, target: File): Boolean {
     return try {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }

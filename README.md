@@ -1,94 +1,51 @@
-# Tap Counter: Bluetooth headphone buttons → counter
+# Tap Counter (Naam Jap counter): final version
 
-Any standard Bluetooth headset works (no device-specific code). Buttons are captured through an
-active `MediaSessionCompat` owned by a `connectedDevice` foreground service.
+Counts with the screen, any Bluetooth headset button and the phone volume keys. Works with the screen off.
 
-## Build and install entirely from your phone (GitHub Actions)
-
-You need: a free GitHub account, the Termux app (install from F-Droid, not the Play Store), and this zip.
-
-1. **GitHub**: in the mobile browser create a new empty repository (e.g. `TapCounter`, private is fine).
-2. **Token**: GitHub → Settings → Developer settings → Personal access tokens → *Tokens (classic)* →
-   Generate new token, tick **repo** and **workflow**, copy it.
-3. **Termux**, one-time setup:
+## Deploy from your phone (Termux + GitHub Actions)
+1. Download the zip, then in Termux:
    ```
-   termux-setup-storage
-   pkg update -y && pkg install -y git unzip
-   git config --global user.name "YourName"
-   git config --global user.email "you@example.com"
+   cd ~ && rm -rf final && mkdir final && unzip -oq ~/storage/downloads/TapCounter-FINAL.zip -d final
+   bash ~/final/TC-FINAL/deploy.sh
    ```
-4. **Push** (adjust the zip name and your GitHub user/repo):
-   ```
-   cd ~
-   cp ~/storage/downloads/TapCounter-complete.zip .
-   unzip TapCounter-complete.zip && cd TapCounter
-   git init -b main
-   git add -A && git commit -m "Tap Counter headset control"
-   git remote add origin https://github.com/YOUR_USER/TapCounter.git
-   git push -u origin main
-   ```
-   When asked: username = your GitHub name, password = the token.
-5. **Wait** 8–12 min: GitHub app/website → repo → **Actions** → "Android CI". Two jobs: `tests` and `build`.
-6. **Install**: repo → **Releases** → newest "Build N" → tap `app-debug.apk` → open it → allow
-   "install unknown apps" for your browser when asked. New builds install over old ones (fixed debug key).
-7. **If a step is red**: open it, copy the last ~40 log lines and send them to me; I'll fix the cause.
+2. Paste a fresh GitHub token (classic, scopes **repo** + **workflow**) when asked, then delete it on GitHub.
+3. github.com/YOUR_USER/TapCounter/actions: wait ~10 min for the green tick.
+4. Releases > newest build > the .apk > install over the old app (same signing key, rising version number).
+If a step is red: open it, copy the last 40 log lines and send them.
 
-To change code later on the phone: edit files in the GitHub web editor (or in Termux), commit, and a new APK is built.
+## First run
+* The app opens on a **calculator**. Type **1234** and press **=** to open the counter (change it in Settings).
+* Counter menu (the three dots): History, Analytics, Settings, Hide.
+* Tap **Enable headset + volume buttons** (allow notifications + Bluetooth).
 
-## Using it
-* **Count:** tap anywhere on the screen (a finger resting longer than 0.45 s does not count), press any Bluetooth
-  headset button (single click = +1, instant), or press a phone volume key (a held key counts once).
-* **Stealth:** hold FOUR or FIVE fingers on the screen for 1 s (adjustable 0.3-5 s) to enter and again to leave. On headphones,
-  hold Play/Pause ~1.2 s. In stealth the screen is dimmed to the lowest level, the time bar is hidden, and a tap still counts.
-* **Calculator disguise:** leaving stealth (and starting the app) shows a working calculator. Type your secret code
-  (default **1234**, change it in Settings) and press = to open the counter. Menu ⋮ -> Hide also shows the calculator.
-* **Backgrounds:** Settings -> Background: 6 colour themes, a CUSTOM colour picker (top + bottom colour: palette dots or
-  hue/saturation/brightness sliders) and an optional picture.
-* **Touch speed:** Settings -> Counting: Slow / Normal / Fast / Turbo or a slider (0-800 ms). It ignores screen touches
-  closer together than that. Turbo (default) counts every touch.
-* **Daily goal:** Settings -> Counting (0 = off). The info box shows progress; reaching it gives a rising buzz.
-* **Mala speed:** the time each mala took (breaks over 2 min are not counted). Shown under the ring and in Analytics.
-* **Analytics:** menu -> Analytics: bar charts for 7/30 days and hour of day, best day, average, streak, mala speed, goal.
-* **Resets:** Settings -> Reset: 'current mala' (ring to 0, everything else kept) or 'ALL malas' (all-time to 0). Both are
-  logged with date and time in History.
-* **No decrement, no reset on the main screen.** Reset exists only in Settings → Danger zone (confirmed). Headphones and
-  volume keys can never reset or decrement.
-* **History:** menu (⋮) → History: every count is saved automatically by date and by hour.
-* **Mala:** 27/54/108 beads (Settings). Ring shows progress, "Today's Mala Count" shows completed malas, a long triple
-  buzz marks each completed mala (Settings → Vibration).
-* **Look:** Settings → god name (any text), colour, size and an optional picture.
-* **Any Bluetooth device:** Settings → Learn mode captures whatever key your device sends.
+## Features
+* **Counting:** tap anywhere (instant), headset buttons (single click instant), phone volume keys (a held key counts once).
+  Touch speed Slow/Normal/Fast/Turbo. 27/54/108 beads per mala. Daily goal. Mala speed.
+* **Stealth:** hold 4 or 5 fingers (default 1 s) to enter/leave. Screen goes black, dimmest brightness, status bar hidden.
+  Leaving stealth shows the calculator.
+* **Calculator disguise + face unlock:** the secret code opens the counter. Optionally your FACE opens it by itself, and
+  another face (or two faces) switches back to the calculator. Set up in Settings > Face unlock.
+* **History:** days with hour-by-hour charts, and a reset log with date and time.
+* **Analytics:** 7/30-day bars, hour-of-day bars, totals, average, best day, streak, mala speed, goal.
+* **Reset:** "current mala" or "ALL malas", only in Settings or History, never from headphones. Logged with date and time.
+* **Look:** god name (any text, colour, size), picture, 6 themes + custom colour picker, background picture.
+* The screens adapt to portrait, landscape, small phones and tablets.
 
-## Honest limits (read this)
-* **Volume up/down on Bluetooth headsets are not key events.** Most headsets use AVRCP absolute volume:
-  the headset changes its own volume and just tells the phone. Nothing arrives, so they can't count.
-* **Reliable on most headsets:** Play/Pause (or the single hook button), Next, Previous.
-* Many earbuds process double/triple taps themselves and send *Next/Previous*. That is why Learn mode exists.
-* **Long press** is frequently reserved by the headset (voice assistant, ANC) and sends nothing or goes to the assistant.
-* Our own double/triple/long detection only works when the headset sends raw press/release events.
-* Single clicks are delayed by the multi-click window (default 350 ms); lower it for snappier counting.
-* Conflict detection is a heuristic. Android has no API for "who owns the media buttons".
-* The service must be running; it does not auto-start at boot.
-* Aggressive battery savers (some Xiaomi/Huawei/Samsung modes) kill background services. Exempt the app.
+## Honest limits
+* Bluetooth headset volume keys and fingerprint-sensor presses can't be read by apps.
+* Many earbuds keep double/triple/long press for themselves. Use Learn mode to see what yours sends.
+* Face unlock is a convenience disguise, not bank-grade security (look-alikes or a photo might fool it; bad light can miss you).
+  The camera runs only while the app is on screen, and Android shows its camera-in-use dot.
+* The calculator code and the face are the only ways in. Remember your code.
+* Set the app's battery to Unrestricted so Android doesn't stop headset control.
 
-## Keep-alive audio trade-off
-Android prefers the app that most recently *played* audio. A session that only claims "playing" can lose
-priority. So the service loops 1 s of ±1-LSB samples (≈ −90 dBFS, inaudible) with no audio focus requested
-(it never pauses your music). Cost: Bluetooth stays in A2DP streaming mode → a little more battery on phone
-and headset. Toggle: Settings → Keep-alive silent audio.
-
-## Layout
+## Project layout
 ```
-app/src/main/cpp/            C++17 gesture engine + JNI (libtapgesture.so)
-app/src/main/java/.../headset/  settings, rules, session manager, service, controller
-app/src/main/java/.../ui/       Compose screens (counter, settings, learn mode)
-app/src/test/cpp/            native tests (run_native_tests.sh)
-app/src/test/java/           Kotlin unit tests (RESET rule, codec, DataStore)
-docs/                        TEST_CHECKLIST.md, headset-study-note.html
-.github/workflows/android.yml  CI: tests + APK + GitHub Release
+app/src/main/cpp/                C++17 gesture engine + JNI
+app/src/main/java/.../headset/   headset service, session, settings, rules
+app/src/main/java/.../face/      face detection + recognition (MobileFaceNet), gate logic
+app/src/main/java/.../ui/        Compose screens + shared UI kit
+app/src/main/assets/             MobileFaceNet.tflite (see docs/THIRD_PARTY.md)
+app/src/test/                    native + Kotlin unit tests
+.github/workflows/android.yml    CI: tests + APK + GitHub Release
 ```
-
-## Adding this to your existing app instead
-Copy `cpp/`, the `headset/` package, `HeadsetService`, the manifest entries and the Gradle bits.
-Make your counter implement `CounterActions` (increment, decrement, toggleStealth, forceStealthOn).
-It intentionally has no reset(). Rename the package in Kotlin and in `jni_bridge.cpp` (`Java_com_example_...`).

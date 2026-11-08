@@ -20,12 +20,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.ui.AnalyticsScreen
 import com.example.tapcounter.ui.CalculatorScreen
 import com.example.tapcounter.ui.CounterScreen
+import com.example.tapcounter.ui.FaceGuard
+import com.example.tapcounter.ui.FaceSetupScreen
 import com.example.tapcounter.ui.HistoryScreen
 import com.example.tapcounter.ui.LearnScreen
 import com.example.tapcounter.ui.SettingsScreen
 import com.example.tapcounter.ui.TapCounterTheme
 
-enum class Screen { COUNTER, SETTINGS, LEARN, HISTORY, ANALYTICS }
+enum class Screen { COUNTER, SETTINGS, LEARN, HISTORY, ANALYTICS, FACE }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,6 +71,9 @@ fun AppRoot(app: TapCounterApp) {
     val counter by app.counterStore.state.collectAsStateWithLifecycle()
     val display by app.counterStore.display.collectAsStateWithLifecycle()
 
+    // Invisible face check (calculator <-> counter). Paused while the face setup screen uses the camera.
+    FaceGuard(app, paused = screen == Screen.FACE)
+
     // Calculator disguise: shown instead of the app until the secret code + "=" is entered.
     if (counter.locked) {
         CalculatorScreen(code = display.calcCode, onUnlock = { app.counterStore.unlock() })
@@ -76,7 +81,7 @@ fun AppRoot(app: TapCounterApp) {
     }
 
     BackHandler(enabled = screen != Screen.COUNTER) {
-        screen = if (screen == Screen.LEARN) Screen.SETTINGS else Screen.COUNTER
+        screen = if (screen == Screen.LEARN || screen == Screen.FACE) Screen.SETTINGS else Screen.COUNTER
     }
 
     when (screen) {
@@ -90,9 +95,11 @@ fun AppRoot(app: TapCounterApp) {
             app,
             onBack = { screen = Screen.COUNTER },
             onLearn = { screen = Screen.LEARN },
+            onFace = { screen = Screen.FACE },
         )
         Screen.LEARN -> LearnScreen(app, onDone = { screen = Screen.SETTINGS })
         Screen.HISTORY -> HistoryScreen(app, onBack = { screen = Screen.COUNTER })
         Screen.ANALYTICS -> AnalyticsScreen(app, onBack = { screen = Screen.COUNTER })
+        Screen.FACE -> FaceSetupScreen(app, onBack = { screen = Screen.SETTINGS })
     }
 }

@@ -6,6 +6,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.tapcounter.counter.CounterStore
+import com.example.tapcounter.face.FaceEngine
+import com.example.tapcounter.face.FaceStore
 import com.example.tapcounter.headset.HeadsetController
 import com.example.tapcounter.headset.HeadsetSettingsRepository
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +21,10 @@ class TapCounterApp : Application() {
     val counterStore: CounterStore by lazy { CounterStore(this) }
     val headsetSettings: HeadsetSettingsRepository by lazy { HeadsetSettingsRepository(headsetStore) }
     val headsetController: HeadsetController by lazy { HeadsetController(this, counterStore, headsetSettings) }
+
+    val faceStore: FaceStore by lazy { FaceStore(this) }
+    /** Loads the face model on first use only. */
+    val faceEngine: FaceEngine by lazy { FaceEngine(this) }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 

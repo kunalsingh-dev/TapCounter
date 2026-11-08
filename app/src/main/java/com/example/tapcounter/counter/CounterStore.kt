@@ -47,6 +47,16 @@ data class DisplayState(
     /** Custom background colours (ARGB), used when [bgTheme] == custom (= number of built-in themes). */
     val customTop: Int = 0xFF4BA591.toInt(),
     val customBottom: Int = 0xFF4E5E86.toInt(),
+    /** Face unlock: my face opens the counter, other faces keep the calculator. */
+    val faceUnlock: Boolean = false,
+    /** Cosine-similarity threshold in percent (higher = stricter). */
+    val faceThresholdPct: Int = 50,
+    /** While the counter is open, another face switches back to the calculator. */
+    val faceWatch: Boolean = true,
+    /** Two or more faces in view count as a stranger. */
+    val faceLockOnMultiple: Boolean = true,
+    /** Optional anti-photo check: blink to unlock. */
+    val faceRequireBlink: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_GOD_NAME = "राधावल्लभ\nश्रीहरिवंश"
@@ -212,6 +222,11 @@ class CounterStore(context: Context) : CounterActions {
             .putInt(KEY_DAILY_GOAL, d.dailyGoalMalas)
             .putInt(KEY_CUSTOM_TOP, d.customTop)
             .putInt(KEY_CUSTOM_BOTTOM, d.customBottom)
+            .putBoolean(KEY_FACE_UNLOCK, d.faceUnlock)
+            .putInt(KEY_FACE_THRESHOLD, d.faceThresholdPct)
+            .putBoolean(KEY_FACE_WATCH, d.faceWatch)
+            .putBoolean(KEY_FACE_MULTI, d.faceLockOnMultiple)
+            .putBoolean(KEY_FACE_BLINK, d.faceRequireBlink)
             .apply()
     }
 
@@ -248,6 +263,11 @@ class CounterStore(context: Context) : CounterActions {
         dailyGoalMalas = prefs.getInt(KEY_DAILY_GOAL, 0),
         customTop = prefs.getInt(KEY_CUSTOM_TOP, 0xFF4BA591.toInt()),
         customBottom = prefs.getInt(KEY_CUSTOM_BOTTOM, 0xFF4E5E86.toInt()),
+        faceUnlock = prefs.getBoolean(KEY_FACE_UNLOCK, false),
+        faceThresholdPct = prefs.getInt(KEY_FACE_THRESHOLD, 50),
+        faceWatch = prefs.getBoolean(KEY_FACE_WATCH, true),
+        faceLockOnMultiple = prefs.getBoolean(KEY_FACE_MULTI, true),
+        faceRequireBlink = prefs.getBoolean(KEY_FACE_BLINK, false),
     )
 
     private companion object {
@@ -272,5 +292,10 @@ class CounterStore(context: Context) : CounterActions {
         const val KEY_DAILY_GOAL = "daily_goal"
         const val KEY_CUSTOM_TOP = "custom_top"
         const val KEY_CUSTOM_BOTTOM = "custom_bottom"
+        const val KEY_FACE_UNLOCK = "face_unlock"
+        const val KEY_FACE_THRESHOLD = "face_threshold"
+        const val KEY_FACE_WATCH = "face_watch"
+        const val KEY_FACE_MULTI = "face_multi"
+        const val KEY_FACE_BLINK = "face_blink"
     }
 }

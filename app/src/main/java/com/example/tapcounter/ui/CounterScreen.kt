@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,6 +40,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -48,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -55,11 +59,14 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.TapCounterApp
+import com.example.tapcounter.counter.DisplayState
 import com.example.tapcounter.data.MalaMath
 import com.example.tapcounter.data.MalaStats
+import com.example.tapcounter.data.Summary
 import com.example.tapcounter.data.SummaryMath
 import com.example.tapcounter.headset.HeadsetService
 import com.example.tapcounter.headset.HeadsetSettings
+import com.example.tapcounter.headset.HeadsetStatus
 import java.time.LocalDate
 
 @Composable
@@ -69,7 +76,6 @@ fun CounterScreen(
     onOpenHistory: () -> Unit,
     onOpenAnalytics: () -> Unit,
 ) {
-    val context = LocalContext.current
     val view = LocalView.current
     val counter by app.counterStore.state.collectAsStateWithLifecycle()
     val display by app.counterStore.display.collectAsStateWithLifecycle()
@@ -78,7 +84,6 @@ fun CounterScreen(
     val malaRecords by app.counterStore.history.malas.collectAsStateWithLifecycle()
     val status by app.headsetController.status.collectAsStateWithLifecycle()
     val settings by app.headsetSettings.settings.collectAsStateWithLifecycle(initialValue = HeadsetSettings())
-    val enable = rememberEnableHeadset()
     var menuOpen by remember { mutableStateOf(false) }
 
     // Stealth: dimmest brightness (so a black screen doesn't glow) and hidden time/status bar.
@@ -123,14 +128,15 @@ fun CounterScreen(
     val customTheme = display.bgTheme >= BgThemes.size
     val top = if (customTheme) Color(display.customTop) else lerp(theme.top0, theme.top1, progress)
     val bottom = if (customTheme) Color(display.customBottom) else lerp(theme.bottom0, theme.bottom1, progress)
-    val malaStats = remember(malaRecords) { MalaStats.summarize(malaRecords.map { it.seconds }) }
     val summary = remember(days, baseline) { SummaryMath.compute(days, baseline, LocalDate.now().toString()) }
+    val malaStats = remember(malaRecords) { MalaStats.summarize(malaRecords.map { it.seconds }) }
     val godImage = remember(display.imageVersion) {
         BitmapFactory.decodeFile(app.counterStore.godImageFile.path)?.asImageBitmap()
     }
     val bgImage = remember(display.bgImageVersion) {
         BitmapFactory.decodeFile(app.counterStore.bgImageFile.path)?.asImageBitmap()
     }
+    val ringValue = MalaMath.displayCount(counter.count, settings.malaSize)
 
     Box(
         modifier = Modifier
@@ -139,12 +145,7 @@ fun CounterScreen(
             .then(gestures),
     ) {
         bgImage?.let {
-            Image(
-                bitmap = it,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
+            Image(bitmap = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.30f)))
         }
 
@@ -155,11 +156,11 @@ fun CounterScreen(
                     .fillMaxWidth()
                     .background(Color(0xFF0D0F12))
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("नाम जप Counter", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium)
+                Text("नाम जप Counter", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                 Box {
                     TextButton(onClick = { menuOpen = true }) { Text("⋮", color = Color.White, fontSize = 26.sp) }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -174,119 +175,167 @@ fun CounterScreen(
                 }
             }
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                // God picture + name
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    godImage?.let {
-                        Image(
-                            bitmap = it,
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.height(140.dp).padding(bottom = 8.dp),
-                        )
-                    }
-                    Text(
-                        text = display.godName,
-                        color = GodColors[display.godColorIndex.coerceIn(0, GodColors.lastIndex)],
-                        fontSize = display.godSizeSp.sp,
-                        lineHeight = (display.godSizeSp * 1.25f).sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                    )
-                }
+            // Everything below adapts to the space left: portrait, landscape, small phones, tablets.
+            BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth().navigationBarsPadding()) {
+                val landscape = maxWidth > maxHeight * 1.15f
+                val scale = (maxHeight.value / 560f).coerceIn(0.6f, 1.15f)
+                val rawRing: Dp = if (landscape) minOf(maxHeight * 0.8f, maxWidth * 0.38f) else minOf(maxWidth * 0.62f, maxHeight * 0.36f)
+                val ringSize: Dp = rawRing.coerceIn(120.dp, 300.dp)
 
-                // Ring: your taps inside the current mala
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(220.dp)) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val stroke = 18.dp.toPx()
-                        val inset = stroke / 2f
-                        val arcSize = Size(size.width - stroke, size.height - stroke)
-                        drawArc(
-                            color = Color.White.copy(alpha = 0.25f),
-                            startAngle = 0f,
-                            sweepAngle = 360f,
-                            useCenter = false,
-                            topLeft = Offset(inset, inset),
-                            size = arcSize,
-                            style = Stroke(width = stroke),
-                        )
-                        val sweep = if (counter.count % settings.malaSize == 0) 0f else maxOf(360f * progress, 3f)
-                        drawArc(
-                            color = Color.White,
-                            startAngle = -90f,
-                            sweepAngle = sweep,
-                            useCenter = false,
-                            topLeft = Offset(inset, inset),
-                            size = arcSize,
-                            style = Stroke(width = stroke, cap = StrokeCap.Round),
-                        )
-                    }
-                    Text(
-                        text = MalaMath.displayCount(counter.count, settings.malaSize).toString(),
-                        color = Color.White,
-                        fontSize = 72.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-
-                Text("Today's Mala Count: ${summary.todayMalas}", color = Color.White, fontSize = 22.sp)
-
-                // Info box
-                Column(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF111418))
-                        .padding(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        "Today: ${summary.todayTotal}  ·  All time: ${summary.allTime}  ·  Malas: ${summary.allMalas}",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                    )
-                    if (display.dailyGoalMalas > 0) {
-                        val met = summary.todayMalas >= display.dailyGoalMalas
-                        Text(
-                            "Goal: ${summary.todayMalas}/${display.dailyGoalMalas} malas" + if (met) "  ✓" else "",
-                            color = if (met) Color(0xFFFFD54F) else Color.White,
-                            fontSize = 14.sp,
-                        )
-                    }
-                    malaStats.lastSec?.let { last ->
-                        Text(
-                            "Last mala: ${formatDuration(last)}  ·  Avg: ${formatDuration(malaStats.avgSec ?: last)}",
-                            color = Color(0xFFB0B8C4),
-                            fontSize = 12.sp,
-                        )
-                    }
-                    if (!status.serviceRunning) {
-                        TextButton(onClick = enable) {
-                            Text("Enable headset + volume buttons", color = Color(0xFF8AB4F8))
+                if (landscape) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+                        ) {
+                            GodHeader(display, godImage, scale)
+                            InfoBox(display, summary, malaStats.lastSec, malaStats.avgSec, status, settings, app)
                         }
-                    } else {
-                        Text(
-                            buildString {
-                                append("Buttons active")
-                                if (settings.hardwareLock) append(" (locked)")
-                                status.lastKeyName?.let { append(" · last: $it") }
-                            },
-                            color = Color(0xFFB0B8C4),
-                            fontSize = 12.sp,
-                        )
-                        if (status.possibleConflict) {
-                            TextButton(onClick = { HeadsetService.retakeControl(context) }) {
-                                Text("Another app is playing: re-take control", color = Color(0xFFFFB4AB))
-                            }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+                        ) {
+                            MalaRing(ringValue, progress, ringSize, settings.malaSize, counter.count)
+                            Text("Today's Mala Count: ${summary.todayMalas}", color = Color.White, fontSize = (20f * scale).sp)
                         }
                     }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        GodHeader(display, godImage, scale)
+                        MalaRing(ringValue, progress, ringSize, settings.malaSize, counter.count)
+                        Text("Today's Mala Count: ${summary.todayMalas}", color = Color.White, fontSize = (22f * scale).sp)
+                        InfoBox(display, summary, malaStats.lastSec, malaStats.avgSec, status, settings, app)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GodHeader(display: DisplayState, godImage: ImageBitmap?, scale: Float) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        godImage?.let {
+            Image(
+                bitmap = it,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.height((130f * scale).dp).padding(bottom = 6.dp),
+            )
+        }
+        val size = (display.godSizeSp * scale).coerceAtLeast(18f)
+        Text(
+            text = display.godName,
+            color = GodColors[display.godColorIndex.coerceIn(0, GodColors.lastIndex)],
+            fontSize = size.sp,
+            lineHeight = (size * 1.25f).sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun MalaRing(value: Int, progress: Float, size: Dp, malaSize: Int, count: Int) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size)) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val stroke = this.size.minDimension * 0.082f
+            val inset = stroke / 2f
+            val arcSize = Size(this.size.width - stroke, this.size.height - stroke)
+            drawArc(
+                color = Color.White.copy(alpha = 0.25f),
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = Offset(inset, inset),
+                size = arcSize,
+                style = Stroke(width = stroke),
+            )
+            val sweep = if (count % malaSize == 0) 0f else maxOf(360f * progress, 3f)
+            drawArc(
+                color = Color.White,
+                startAngle = -90f,
+                sweepAngle = sweep,
+                useCenter = false,
+                topLeft = Offset(inset, inset),
+                size = arcSize,
+                style = Stroke(width = stroke, cap = StrokeCap.Round),
+            )
+        }
+        Text(text = value.toString(), color = Color.White, fontSize = (size.value * 0.33f).sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun InfoBox(
+    display: DisplayState,
+    summary: Summary,
+    lastSec: Int?,
+    avgSec: Int?,
+    status: HeadsetStatus,
+    settings: HeadsetSettings,
+    app: TapCounterApp,
+) {
+    val context = LocalContext.current
+    val enable = rememberEnableHeadset()
+    Column(
+        modifier = Modifier
+            .widthIn(max = 420.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF111418))
+            .padding(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            "Today ${summary.todayTotal}  ·  All time ${summary.allTime}  ·  Malas ${summary.allMalas}",
+            color = Color.White,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+        )
+        if (display.dailyGoalMalas > 0) {
+            val met = summary.todayMalas >= display.dailyGoalMalas
+            Text(
+                "Goal ${summary.todayMalas}/${display.dailyGoalMalas} malas" + if (met) "  ✓" else "",
+                color = if (met) Color(0xFFFFD54F) else Color.White,
+                fontSize = 13.sp,
+            )
+        }
+        lastSec?.let { last ->
+            Text(
+                "Last mala ${formatDuration(last)}  ·  Average ${formatDuration(avgSec ?: last)}",
+                color = Color(0xFFB0B8C4),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
+        if (!status.serviceRunning) {
+            TextButton(onClick = enable) { Text("Enable headset + volume buttons", color = Color(0xFF8AB4F8)) }
+        } else {
+            Text(
+                buildString {
+                    append("Buttons active")
+                    if (settings.hardwareLock) append(" (locked)")
+                    status.lastKeyName?.let { append(" · last: $it") }
+                },
+                color = Color(0xFFB0B8C4),
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+            )
+            if (status.possibleConflict) {
+                TextButton(onClick = { HeadsetService.retakeControl(context) }) {
+                    Text("Another app is playing: re-take control", color = Color(0xFFFFB4AB))
                 }
             }
         }

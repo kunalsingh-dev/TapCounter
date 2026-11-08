@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,12 +49,17 @@ fun CalculatorScreen(code: String, onUnlock: () -> Unit) {
         display = engine.display
     }
 
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
             .safeDrawingPadding()
             .padding(12.dp),
+    ) {
+    // Keys scale with the screen: 5 rows must fit, and the display keeps at least a third of the height.
+    val keyHeight: Dp = ((maxHeight * 0.62f - 48.dp) / 5).coerceIn(44.dp, 84.dp)
+    Column(
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomEnd) {
@@ -64,33 +72,33 @@ fun CalculatorScreen(code: String, onUnlock: () -> Unit) {
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CalcKey("AC", KeyLight, Color.Black) { press { engine.clear() } }
-            CalcKey("±", KeyLight, Color.Black) { press { engine.negate() } }
-            CalcKey("%", KeyLight, Color.Black) { press { engine.percent() } }
-            CalcKey("÷", KeyOrange) { press { engine.operator('÷') } }
+            CalcKey(keyHeight, "AC", KeyLight, Color.Black) { press { engine.clear() } }
+            CalcKey(keyHeight, "±", KeyLight, Color.Black) { press { engine.negate() } }
+            CalcKey(keyHeight, "%", KeyLight, Color.Black) { press { engine.percent() } }
+            CalcKey(keyHeight, "÷", KeyOrange) { press { engine.operator('÷') } }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CalcKey("7", KeyDark) { press { engine.digit(7) } }
-            CalcKey("8", KeyDark) { press { engine.digit(8) } }
-            CalcKey("9", KeyDark) { press { engine.digit(9) } }
-            CalcKey("×", KeyOrange) { press { engine.operator('×') } }
+            CalcKey(keyHeight, "7", KeyDark) { press { engine.digit(7) } }
+            CalcKey(keyHeight, "8", KeyDark) { press { engine.digit(8) } }
+            CalcKey(keyHeight, "9", KeyDark) { press { engine.digit(9) } }
+            CalcKey(keyHeight, "×", KeyOrange) { press { engine.operator('×') } }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CalcKey("4", KeyDark) { press { engine.digit(4) } }
-            CalcKey("5", KeyDark) { press { engine.digit(5) } }
-            CalcKey("6", KeyDark) { press { engine.digit(6) } }
-            CalcKey("−", KeyOrange) { press { engine.operator('−') } }
+            CalcKey(keyHeight, "4", KeyDark) { press { engine.digit(4) } }
+            CalcKey(keyHeight, "5", KeyDark) { press { engine.digit(5) } }
+            CalcKey(keyHeight, "6", KeyDark) { press { engine.digit(6) } }
+            CalcKey(keyHeight, "−", KeyOrange) { press { engine.operator('−') } }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CalcKey("1", KeyDark) { press { engine.digit(1) } }
-            CalcKey("2", KeyDark) { press { engine.digit(2) } }
-            CalcKey("3", KeyDark) { press { engine.digit(3) } }
-            CalcKey("+", KeyOrange) { press { engine.operator('+') } }
+            CalcKey(keyHeight, "1", KeyDark) { press { engine.digit(1) } }
+            CalcKey(keyHeight, "2", KeyDark) { press { engine.digit(2) } }
+            CalcKey(keyHeight, "3", KeyDark) { press { engine.digit(3) } }
+            CalcKey(keyHeight, "+", KeyOrange) { press { engine.operator('+') } }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CalcKey("0", KeyDark, flex = 2.1f) { press { engine.digit(0) } }
-            CalcKey(".", KeyDark) { press { engine.dot() } }
-            CalcKey("=", KeyOrange) {
+            CalcKey(keyHeight, "0", KeyDark, flex = 2.1f) { press { engine.digit(0) } }
+            CalcKey(keyHeight, ".", KeyDark) { press { engine.dot() } }
+            CalcKey(keyHeight, "=", KeyOrange) {
                 if (engine.secretMatches(code)) {
                     onUnlock()
                 } else {
@@ -99,10 +107,12 @@ fun CalculatorScreen(code: String, onUnlock: () -> Unit) {
             }
         }
     }
+    }
 }
 
 @Composable
 private fun RowScope.CalcKey(
+    keyHeight: Dp,
     label: String,
     background: Color,
     foreground: Color = Color.White,
@@ -112,12 +122,12 @@ private fun RowScope.CalcKey(
     Box(
         modifier = Modifier
             .weight(flex)
-            .height(76.dp)
-            .clip(RoundedCornerShape(38.dp))
+            .height(keyHeight)
+            .clip(RoundedCornerShape(keyHeight / 2))
             .background(background)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = foreground, fontSize = 30.sp)
+        Text(label, color = foreground, fontSize = (keyHeight.value * 0.4f).sp)
     }
 }
