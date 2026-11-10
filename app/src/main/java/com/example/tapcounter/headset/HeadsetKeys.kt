@@ -12,9 +12,13 @@ object HeadsetKeys {
     const val MEDIA_PREVIOUS = 88
     const val MEDIA_PLAY = 126
     const val MEDIA_PAUSE = 127
+    /** Sent by some headsets for the assistant button; only arrives if Android routes it to us. */
+    const val ASSIST = 219
+    const val VOICE_ASSIST = 231
 
     val supported: Set<Int> = setOf(
         HEADSETHOOK, MEDIA_PLAY_PAUSE, MEDIA_STOP, MEDIA_NEXT, MEDIA_PREVIOUS, MEDIA_PLAY, MEDIA_PAUSE,
+        ASSIST, VOICE_ASSIST,
     )
 
     fun name(keyCode: Int): String = when (keyCode) {
@@ -25,6 +29,8 @@ object HeadsetKeys {
         MEDIA_PREVIOUS -> "KEYCODE_MEDIA_PREVIOUS"
         MEDIA_PLAY -> "KEYCODE_MEDIA_PLAY"
         MEDIA_PAUSE -> "KEYCODE_MEDIA_PAUSE"
+        ASSIST -> "KEYCODE_ASSIST"
+        VOICE_ASSIST -> "KEYCODE_VOICE_ASSIST"
         else -> "KEYCODE_$keyCode"
     }
 }

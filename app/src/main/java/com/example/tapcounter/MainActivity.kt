@@ -3,7 +3,7 @@ package com.example.tapcounter
 import android.graphics.Color as AndroidColor
 import android.os.Bundle
 import android.view.KeyEvent
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -20,6 +20,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.ui.AnalyticsScreen
 import com.example.tapcounter.ui.CalculatorScreen
 import com.example.tapcounter.ui.CounterScreen
+import com.example.tapcounter.ui.CountersScreen
+import com.example.tapcounter.ui.SystemBiometric
 import com.example.tapcounter.ui.FaceGuard
 import com.example.tapcounter.ui.FaceSetupScreen
 import com.example.tapcounter.ui.HistoryScreen
@@ -27,9 +29,10 @@ import com.example.tapcounter.ui.LearnScreen
 import com.example.tapcounter.ui.SettingsScreen
 import com.example.tapcounter.ui.TapCounterTheme
 
-enum class Screen { COUNTER, SETTINGS, LEARN, HISTORY, ANALYTICS, FACE }
+enum class Screen { COUNTER, SETTINGS, LEARN, HISTORY, ANALYTICS, FACE, COUNTERS }
 
-class MainActivity : ComponentActivity() {
+/** FragmentActivity (a ComponentActivity) because the system biometric prompt needs one. */
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Dark bars with light icons everywhere (the whole app is dark).
@@ -40,7 +43,7 @@ class MainActivity : ComponentActivity() {
         val app = TapCounterApp.from(this)
         setContent {
             TapCounterTheme {
-                Surface(modifier = Modifier.fillMaxSize()) { AppRoot(app) }
+                Surface(modifier = Modifier.fillMaxSize()) { AppRoot(app, this@MainActivity) }
             }
         }
     }
@@ -66,7 +69,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun AppRoot(app: TapCounterApp) {
+fun AppRoot(app: TapCounterApp, activity: FragmentActivity) {
     var screen by rememberSaveable { mutableStateOf(Screen.COUNTER) }
     val counter by app.counterStore.state.collectAsStateWithLifecycle()
     val display by app.counterStore.display.collectAsStateWithLifecycle()
@@ -76,7 +79,17 @@ fun AppRoot(app: TapCounterApp) {
 
     // Calculator disguise: shown instead of the app until the secret code + "=" is entered.
     if (counter.locked) {
-        CalculatorScreen(code = display.calcCode, onUnlock = { app.counterStore.unlock() })
+        val counters by app.counterStore.counters.collectAsStateWithLifecycle()
+        val biometricOk = display.biometricUnlock && SystemBiometric.available(activity)
+        CalculatorScreen(
+            codes = counters,
+            onUnlock = { id -> app.counterStore.unlockCounter(id) }, // each counter has its own code
+            onBiometric = if (biometricOk) {
+                { SystemBiometric.prompt(activity) { app.counterStore.unlock() } }
+            } else {
+                null
+            },
+        )
         return
     }
 
@@ -90,16 +103,19 @@ fun AppRoot(app: TapCounterApp) {
             onOpenSettings = { screen = Screen.SETTINGS },
             onOpenHistory = { screen = Screen.HISTORY },
             onOpenAnalytics = { screen = Screen.ANALYTICS },
+            onOpenCounters = { screen = Screen.COUNTERS },
         )
         Screen.SETTINGS -> SettingsScreen(
             app,
             onBack = { screen = Screen.COUNTER },
             onLearn = { screen = Screen.LEARN },
             onFace = { screen = Screen.FACE },
+            onCounters = { screen = Screen.COUNTERS },
         )
         Screen.LEARN -> LearnScreen(app, onDone = { screen = Screen.SETTINGS })
         Screen.HISTORY -> HistoryScreen(app, onBack = { screen = Screen.COUNTER })
         Screen.ANALYTICS -> AnalyticsScreen(app, onBack = { screen = Screen.COUNTER })
         Screen.FACE -> FaceSetupScreen(app, onBack = { screen = Screen.SETTINGS })
+        Screen.COUNTERS -> CountersScreen(app, onBack = { screen = Screen.COUNTER })
     }
 }

@@ -17,6 +17,11 @@ data class HeadsetSettings(
     val keepAliveAudio: Boolean = true,
     /** Phone volume buttons count +1 (a held key counts once). */
     val volumeKeysCount: Boolean = true,
+    /**
+     * Rapid-tap mode: every NEW press counts even if the headset never sent the release of the
+     * previous one (some send only press events when you tap fast).
+     */
+    val fastTaps: Boolean = true,
     /** Counts per mala (27, 54 or 108). */
     val malaSize: Int = DEFAULT_MALA_SIZE,
     val bindings: Map<Pair<Int, Gesture>, Action> = defaultBindings(),
@@ -44,7 +49,7 @@ data class HeadsetSettings(
     )
 
     companion object {
-        const val DEFAULT_DEBOUNCE_MS = 80L
+        const val DEFAULT_DEBOUNCE_MS = 50L
         const val DEFAULT_MULTI_TAP_MS = 350L
         /** Long enough that a normal press never triggers it: this is the stealth "special combination". */
         const val DEFAULT_LONG_PRESS_MS = 1200L

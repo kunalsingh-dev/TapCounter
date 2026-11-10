@@ -32,6 +32,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -47,6 +48,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.TapCounterApp
+import com.example.tapcounter.counter.CounterProfiles
+import com.example.tapcounter.counter.LauncherAliases
 import com.example.tapcounter.headset.Action
 import com.example.tapcounter.headset.Gesture
 import com.example.tapcounter.headset.HeadsetKeys
@@ -55,7 +58,7 @@ import java.io.File
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, onFace: () -> Unit) {
+fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, onFace: () -> Unit, onCounters: () -> Unit) {
     val context = LocalContext.current
     val repo = app.headsetSettings
     val store = app.counterStore
@@ -79,7 +82,11 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, 
     ScreenPage("Settings", onBack) {
 
         // ---------------- Look ----------------
-        SectionCard("God name and picture") {
+        SectionCard("Counters", "Several counters, each with its own count, history, name and secret code.") {
+            Button(onClick = onCounters, modifier = Modifier.fillMaxWidth()) { Text("Manage counters") }
+        }
+
+        SectionCard("Name and picture of the open counter") {
             OutlinedTextField(
                 value = d.godName,
                 onValueChange = { v -> store.updateDisplay { it.copy(godName = v) } },
@@ -175,7 +182,24 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, 
             "Hold FOUR or FIVE fingers on the screen to enter and leave. On headphones, hold Play/Pause. In stealth the screen is dimmed and black; a tap still counts.",
         ) {
             IntSlider("Finger-hold time", d.stealthHoldMs, 300..5000, "ms") { v -> store.updateDisplay { it.copy(stealthHoldMs = v) } }
-            IntSlider("Brightness in stealth", d.stealthBrightnessPct, 1..30, "%") { v -> store.updateDisplay { it.copy(stealthBrightnessPct = v) } }
+            Text("What the stealth screen looks like", style = MaterialTheme.typography.labelMedium)
+            SegmentedControl(DisguiseLabels, d.disguise.coerceIn(0, DisguiseLabels.lastIndex)) { i ->
+                store.updateDisplay { it.copy(disguise = i) }
+            }
+            Text(
+                "A disguise (fake alarm, clock, system update or charging screen) is only drawn: nothing on it can be tapped, so a tap anywhere still counts. Black is the plainest.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text("Screen type", style = MaterialTheme.typography.labelMedium)
+            SegmentedControl(listOf("OLED / AMOLED", "LCD / IPS"), if (d.lcdMode) 1 else 0) { i ->
+                store.updateDisplay { it.copy(lcdMode = i == 1) }
+            }
+            Text(
+                "An LCD / IPS screen always glows a little when it is black: an app cannot switch its backlight off. LCD mode asks for the dimmest brightness the phone allows, which on some phones is fully dark. If the screen turns completely off, switch back to OLED. A dim disguise looks less suspicious than a glowing black screen.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            IntSlider("Brightness of the black screen (OLED)", d.stealthBrightnessPct, 1..30, "%") { v -> store.updateDisplay { it.copy(stealthBrightnessPct = v) } }
+            IntSlider("Brightness of a disguise", d.disguiseBrightnessPct, 1..60, "%") { v -> store.updateDisplay { it.copy(disguiseBrightnessPct = v) } }
             SwitchRow("Hide the time bar (status bar) in stealth", d.hideBars) { v -> store.updateDisplay { it.copy(hideBars = v) } }
         }
 
@@ -185,23 +209,32 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, 
         ) {
             SwitchRow("Show the calculator", d.calcLock) { v -> store.updateDisplay { it.copy(calcLock = v, faceUnlock = d.faceUnlock && v) } }
             var codeDraft by remember(d.calcCode) { mutableStateOf(d.calcCode) }
+            var codeError by remember { mutableStateOf<String?>(null) }
             OutlinedTextField(
                 value = codeDraft,
                 onValueChange = { v ->
-                    val digits = v.filter { it.isDigit() }.take(8)
+                    val digits = v.filter { it.isDigit() }.take(CounterProfiles.MAX_CODE)
                     codeDraft = digits
-                    if (digits.length >= 4) store.updateDisplay { it.copy(calcCode = digits) }
+                    codeError = if (digits.length >= CounterProfiles.MIN_CODE) store.setCounterCode(CounterProfiles.MAIN_ID, digits) else null
                 },
-                label = { Text("Secret code (4 to 8 digits)") },
+                label = { Text("Secret code of the main counter (4 to 8 digits)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 modifier = Modifier.fillMaxWidth(),
             )
+            codeError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             Text(
                 "Default 1234. Remember it: without the code (or your face) you cannot open the counter. " +
-                    "Headphone and volume counting keep working while the calculator is shown.",
+                    "Headphone and volume counting keep working while the calculator is shown. Other counters have their own codes (Manage counters).",
                 style = MaterialTheme.typography.bodySmall,
             )
+            val canBiometric = remember { SystemBiometric.available(context) }
+            SwitchRow("Also allow the phone's own face / fingerprint (long-press the calculator number)", d.biometricUnlock && canBiometric) { v ->
+                store.updateDisplay { it.copy(biometricUnlock = v) }
+            }
+            if (!canBiometric) {
+                Text("No strong face or fingerprint is set up in the phone's own settings.", style = MaterialTheme.typography.bodySmall)
+            }
         }
 
         SectionCard(
@@ -218,6 +251,20 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, 
             SwitchRow("Two or more faces in view count as a stranger", d.faceLockOnMultiple) { v -> store.updateDisplay { it.copy(faceLockOnMultiple = v) } }
             SwitchRow("Anti-photo check: blink once to unlock", d.faceRequireBlink) { v -> store.updateDisplay { it.copy(faceRequireBlink = v) } }
             IntSlider("Match strictness", d.faceThresholdPct, 35..85, "%") { v -> store.updateDisplay { it.copy(faceThresholdPct = v) } }
+            IntSlider("Re-confirm my face every (0 = off)", d.faceReconfirmSec, 0..300, "s") { v -> store.updateDisplay { it.copy(faceReconfirmSec = v) } }
+            Text("Security level", style = MaterialTheme.typography.labelMedium)
+            val presets = listOf(Triple(50, false, 0), Triple(58, false, 60), Triple(62, true, 20))
+            SegmentedControl(
+                listOf("Normal", "Strict", "Maximum"),
+                presets.indexOf(Triple(d.faceThresholdPct, d.faceRequireBlink, d.faceReconfirmSec)),
+            ) { i ->
+                val (threshold, blink, reconfirm) = presets[i]
+                store.updateDisplay { it.copy(faceThresholdPct = threshold, faceRequireBlink = blink, faceReconfirmSec = reconfirm) }
+            }
+            Text(
+                "Maximum: stricter match, a blink is needed to unlock, and the counter hides again if your face has not been seen for 20 seconds. If it locks you out too often, use Normal. The secret code always works. For the strongest check use the phone's own face / fingerprint above.",
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
 
         // ---------------- Feedback ----------------
@@ -230,6 +277,11 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, 
         // ---------------- Headset ----------------
         SectionCard("Headset / Bluetooth") {
             SwitchRow("Hardware lock (ignore headphone and volume buttons)", s.hardwareLock) { scope.launch { repo.setHardwareLock(it) } }
+            SwitchRow("Rapid-tap mode: every new press counts", s.fastTaps) { scope.launch { repo.setFastTaps(it) } }
+            Text(
+                "Lets Play/Pause take many fast taps in a row, even when the headset skips the release signal of the previous tap. If quick taps are still missed, lower Debounce below.",
+                style = MaterialTheme.typography.bodySmall,
+            )
             SwitchRow("Keep-alive silent audio", s.keepAliveAudio) { scope.launch { repo.setKeepAliveAudio(it) } }
             Text(
                 "Keep-alive plays an inaudible loop so Android keeps sending button presses to this app. The Bluetooth link stays in streaming mode, which costs a little battery. Turn it off if your headset works without it.",
@@ -266,6 +318,18 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, 
         }
 
         // ---------------- Reset ----------------
+        var launcherIndex by remember { mutableIntStateOf(LauncherDisguise.current(context)) }
+        SectionCard("App icon and name", "How the app looks on your home screen and in the app drawer.") {
+            SegmentedControl(LauncherAliases.labels, launcherIndex) { i ->
+                LauncherDisguise.apply(context, i)
+                launcherIndex = i
+            }
+            Text(
+                "The launcher can take a few seconds (or a restart) to show the change. Android's own Settings > Apps keeps listing the app as \"Calculator\".",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+
         SectionCard("Reset", "Only possible here and in History. Headphones and volume keys can never reset anything.") {
             ResetControls(app)
         }
@@ -274,6 +338,7 @@ fun SettingsScreen(app: TapCounterApp, onBack: () -> Unit, onLearn: () -> Unit, 
             Text(
                 "• Volume buttons on a Bluetooth headset change the headset's own volume and are NOT sent to the phone, so they can't count.\n" +
                     "• Fingerprint-sensor presses can't be read by apps.\n" +
+                    "• Gemini / Google Assistant: a headset's long-press \"voice command\" goes straight to the assistant and an app cannot take it over. Turn that gesture off in your earbuds' app or in Google settings, so the press arrives as a normal media key that can be counted.\n" +
                     "• Reliable on most headsets: Play/Pause (or the hook button), Next, Previous.\n" +
                     "• Many earbuds handle double/triple taps and long press themselves and send nothing or Next/Previous. Use Learn mode.\n" +
                     "• Another media app playing can take the buttons: use Re-take control.\n" +

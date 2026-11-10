@@ -33,6 +33,7 @@ class HeadsetSettingsRepository(private val store: DataStore<Preferences>) {
         val KEEP_ALIVE = booleanPreferencesKey("keep_alive_audio")
         val MALA_VIBRATION = booleanPreferencesKey("mala_vibration")
         val VOLUME_KEYS = booleanPreferencesKey("volume_keys_count")
+        val FAST_TAPS = booleanPreferencesKey("fast_taps")
         val MALA_SIZE = intPreferencesKey("mala_size")
         /** Absent = first run (defaults apply). Present, even if empty = user's own mapping. */
         val BINDINGS = stringSetPreferencesKey("bindings_v2")
@@ -54,6 +55,8 @@ class HeadsetSettingsRepository(private val store: DataStore<Preferences>) {
     suspend fun setMalaVibration(enabled: Boolean) = store.edit { it[Keys.MALA_VIBRATION] = enabled }
 
     suspend fun setVolumeKeysCount(enabled: Boolean) = store.edit { it[Keys.VOLUME_KEYS] = enabled }
+
+    suspend fun setFastTaps(enabled: Boolean) = store.edit { it[Keys.FAST_TAPS] = enabled }
 
     suspend fun setMalaSize(size: Int) = store.edit {
         it[Keys.MALA_SIZE] = if (size in HeadsetSettings.MALA_SIZES) size else HeadsetSettings.DEFAULT_MALA_SIZE
@@ -95,6 +98,7 @@ class HeadsetSettingsRepository(private val store: DataStore<Preferences>) {
         keepAliveAudio = this[Keys.KEEP_ALIVE] ?: true,
         malaVibration = this[Keys.MALA_VIBRATION] ?: true,
         volumeKeysCount = this[Keys.VOLUME_KEYS] ?: true,
+        fastTaps = this[Keys.FAST_TAPS] ?: true,
         malaSize = this[Keys.MALA_SIZE] ?: HeadsetSettings.DEFAULT_MALA_SIZE,
         bindings = currentBindings(),
     ).sanitized()

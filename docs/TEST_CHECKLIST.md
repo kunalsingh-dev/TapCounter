@@ -95,3 +95,15 @@ Model, key names + codes from Learn mode, which gestures worked, whether it need
 - [ ] System font size set to Large: texts wrap, buttons stay usable.
 - [ ] History > Days: tap a day for its hourly chart. History > Resets: both reset cards and the dated log read cleanly.
 - [ ] Analytics: 7 and 30 day bars with labels, stat tiles, hour chart, mala speed, goal.
+
+## M. Counters, disguises, icon, rapid taps
+- [ ] Menu > Counters > add "Test" with code 5678. On the calculator type 5678 = : the empty Test counter opens. 1234 = opens Main.
+- [ ] Counts, History and Analytics are separate per counter. Delete Test: its data is gone; Main is untouched.
+- [ ] Stealth with Alarm / Clock / Update / Charging: the animation runs, tapping anywhere counts, 4-5 fingers leaves stealth.
+- [ ] LCD mode on an IPS phone: black screen is as dark as the phone allows (switch back to OLED if the screen turns off).
+- [ ] Settings > App icon and name > Clock: the home-screen icon and name change (wait a few seconds). Switch back to Calculator.
+- [ ] Android Settings > Apps lists the app as "Calculator"; the notification reads "Calculator / Running".
+- [ ] Headset Play/Pause: 10 very fast taps give ~10 counts with Rapid-tap mode on.
+- [ ] Face security level Maximum: blink to unlock; after ~20 s without your face the counter hides again.
+- [ ] Allow the phone's own biometric; long-press the calculator number: the system prompt appears and opens the counter.
+- [ ] Calculator: portrait, landscape and a long result (e.g. 123456789 x 987654321) all fit.

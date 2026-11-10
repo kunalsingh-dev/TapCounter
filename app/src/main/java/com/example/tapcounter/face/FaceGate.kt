@@ -14,12 +14,17 @@ data class FaceGateConfig(
     /** Optional anti-photo check: a blink must be seen shortly before accepting. */
     val requireBlink: Boolean = false,
     val blinkWindowMs: Long = 5000L,
+    /**
+     * Re-confirmation (watch mode): if the owner's face has not been matched for this long, the
+     * verdict becomes UNCONFIRMED and the app should hide again. 0 = off.
+     */
+    val reconfirmMs: Long = 0L,
 )
 
 /** What one camera frame showed. [similarity] belongs to the largest face; null if no face. */
 data class FaceObservation(val faceCount: Int, val similarity: Float?, val eyesOpen: Boolean?)
 
-enum class FaceVerdict { NONE, OWNER, STRANGER }
+enum class FaceVerdict { NONE, OWNER, STRANGER, UNCONFIRMED }
 
 /**
  * Turns a stream of frame results into a decision. Pure logic, no Android classes.
@@ -36,10 +41,20 @@ class FaceGate(private val cfg: FaceGateConfig = FaceGateConfig()) {
     private var rejectRun = 0
     private var multiRun = 0
     private var lastBlinkAt = NEVER
+    private var lastOwnerAt = NEVER
     private var closedSince = NEVER
     private var sawOpen = false
 
     fun onFrame(now: Long, obs: FaceObservation): FaceVerdict {
+        if (lastOwnerAt == NEVER) lastOwnerAt = now // the gate starts right after a successful unlock
+        val verdict = evaluate(now, obs)
+        if (cfg.reconfirmMs > 0 && verdict == FaceVerdict.NONE && now - lastOwnerAt > cfg.reconfirmMs) {
+            return FaceVerdict.UNCONFIRMED
+        }
+        return verdict
+    }
+
+    private fun evaluate(now: Long, obs: FaceObservation): FaceVerdict {
         trackBlink(now, obs.eyesOpen)
 
         if (obs.faceCount <= 0) {
@@ -55,6 +70,7 @@ class FaceGate(private val cfg: FaceGateConfig = FaceGateConfig()) {
 
         val sim = obs.similarity ?: return FaceVerdict.NONE
         return if (sim >= cfg.threshold) {
+            lastOwnerAt = now
             matchRun++
             rejectRun = 0
             val blinkOk = !cfg.requireBlink || now - lastBlinkAt <= cfg.blinkWindowMs
@@ -68,7 +84,7 @@ class FaceGate(private val cfg: FaceGateConfig = FaceGateConfig()) {
 
     fun reset() {
         matchRun = 0; rejectRun = 0; multiRun = 0
-        lastBlinkAt = NEVER; closedSince = NEVER; sawOpen = false
+        lastBlinkAt = NEVER; closedSince = NEVER; sawOpen = false; lastOwnerAt = NEVER
     }
 
     /** A blink = eyes open, then closed for at most 800 ms, then open again. */

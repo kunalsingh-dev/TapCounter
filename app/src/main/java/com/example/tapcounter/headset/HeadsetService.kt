@@ -214,7 +214,7 @@ class HeadsetService : Service() {
     private fun createChannel() {
         NotificationManagerCompat.from(this).createNotificationChannel(
             NotificationChannelCompat.Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
-                .setName("Headset control")
+                .setName("Background")
                 .build(),
         )
     }
@@ -233,14 +233,14 @@ class HeadsetService : Service() {
         val locked = latest.hardwareLock
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_headset)
-            .setContentTitle("Headset buttons active")
-            .setContentText(if (locked) "Hardware lock ON: buttons are ignored" else "Headphone buttons are counting")
+            .setContentTitle("Calculator")
+            .setContentText(if (locked) "Paused" else "Running")
             .setContentIntent(contentIntent())
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .addAction(0, if (locked) "Unlock" else "Lock", servicePending(ACTION_TOGGLE_LOCK, 1))
+            .addAction(0, if (locked) "Resume" else "Pause", servicePending(ACTION_TOGGLE_LOCK, 1))
             .addAction(0, "Stop", servicePending(ACTION_STOP, 2))
             .build()
     }

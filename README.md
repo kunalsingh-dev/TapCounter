@@ -5,8 +5,8 @@ Counts with the screen, any Bluetooth headset button and the phone volume keys. 
 ## Deploy from your phone (Termux + GitHub Actions)
 1. Download the zip, then in Termux:
    ```
-   cd ~ && rm -rf final && mkdir final && unzip -oq ~/storage/downloads/TapCounter-FINAL.zip -d final
-   bash ~/final/TC-FINAL/deploy.sh
+   cd ~ && rm -rf final && mkdir final && unzip -oq ~/storage/downloads/TapCounter-FINAL2.zip -d final
+   bash ~/final/TC-FINAL2/deploy.sh
    ```
 2. Paste a fresh GitHub token (classic, scopes **repo** + **workflow**) when asked, then delete it on GitHub.
 3. github.com/YOUR_USER/TapCounter/actions: wait ~10 min for the green tick.
@@ -31,8 +31,24 @@ If a step is red: open it, copy the last 40 log lines and send them.
 * **Look:** god name (any text, colour, size), picture, 6 themes + custom colour picker, background picture.
 * The screens adapt to portrait, landscape, small phones and tablets.
 
+## New in this version
+* **Several counters:** Menu > Counters. Each has its own count, history, name, picture and its OWN secret code: type that
+  code on the calculator and = to open that counter.
+* **Stealth disguises:** Settings > Stealth: Black, fake Alarm, Clock, System update, Charging. They are only drawn (not tappable),
+  so a tap anywhere still counts. OLED or LCD/IPS mode (dimmest-brightness option for LCD screens).
+* **App icon and name:** Settings > App icon and name: Calculator (default), Clock or Tap Counter. The app is listed as
+  "Calculator" in Android's app list and the background notification says "Calculator / Running".
+* **Rapid Bluetooth taps:** Rapid-tap mode counts every new Play/Pause press, even if the headset skips the release signal.
+* **Face re-confirm + security levels:** Normal / Strict / Maximum (blink + re-check every 20 s). The phone's own face/fingerprint
+  can also be allowed (long-press the calculator number).
+
 ## Honest limits
 * Bluetooth headset volume keys and fingerprint-sensor presses can't be read by apps.
+* The headset's long-press "voice command" goes straight to Gemini / Google Assistant; apps cannot override it. Turn that gesture off
+  in the earbuds' app or Google settings so the press arrives as a normal media key.
+* iPhone Face ID uses an infrared 3D sensor. A normal phone camera cannot match that. The strongest option available to an app is the
+  phone's own biometric (allowed in Settings); the in-app face check is a convenience disguise.
+* LCD / IPS screens cannot be fully blacked out by an app; use a dim disguise and LCD mode.
 * Many earbuds keep double/triple/long press for themselves. Use Learn mode to see what yours sends.
 * Face unlock is a convenience disguise, not bank-grade security (look-alikes or a photo might fool it; bad light can miss you).
   The camera runs only while the app is on screen, and Android shows its camera-in-use dot.

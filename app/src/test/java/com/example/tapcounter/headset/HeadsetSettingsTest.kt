@@ -11,7 +11,7 @@ class HeadsetSettingsTest {
         assertEquals(Action.STEALTH_TOGGLE, s.actionFor(HeadsetKeys.MEDIA_PLAY_PAUSE, Gesture.LONG_PRESS))
         assertEquals(Action.NONE, s.actionFor(HeadsetKeys.MEDIA_PLAY_PAUSE, Gesture.DOUBLE))
         assertEquals(Action.NONE, s.actionFor(HeadsetKeys.MEDIA_PLAY_PAUSE, Gesture.TRIPLE))
-        assertEquals(80L, s.debounceMs)
+        assertEquals(50L, s.debounceMs)
         assertEquals(1200L, s.longPressMs)
     }
 

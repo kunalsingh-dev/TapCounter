@@ -14,8 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * volume key) updates memory at once; disk writes are batched (at most every 250 ms) so fast
  * counting never waits for storage. [flush] writes immediately.
  */
-class HistoryStore(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences("history", Context.MODE_PRIVATE)
+class HistoryStore(context: Context, prefsName: String = "history") {
+    private val appContext = context.applicationContext
+    private var prefs = appContext.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
     private val handler = Handler(Looper.getMainLooper())
     private val dirtyDates = linkedSetOf<String>()
     private var saveQueued = false
@@ -74,6 +75,18 @@ class HistoryStore(context: Context) {
     fun addMalaRecord(record: MalaRecord) {
         prefs.edit().putString("$MALA_PREFIX${System.currentTimeMillis()}", MalaRecordCodec.encode(record)).apply()
         _malas.value = (listOf(record) + _malas.value).take(MAX_MALA_RECORDS)
+    }
+
+    /** Switch to another counter's history (several counters, one file each). Saves the current one first. */
+    fun reload(prefsName: String) {
+        flush()
+        prefs = appContext.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        dirtyDates.clear()
+        last = null
+        _days.value = loadDays()
+        _resets.value = loadResets()
+        _malas.value = loadMalas()
+        _baseline.value = loadBaseline()
     }
 
     fun summary(today: String = LocalDate.now().toString()): Summary =

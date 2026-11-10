@@ -94,4 +94,40 @@ class FaceGateTest {
         g.onFrame(2100, owner)
         assertEquals(FaceVerdict.NONE, g.onFrame(2200, owner))
     }
+
+    @Test fun reconfirmHidesWhenOwnerNotSeenForTooLong() {
+        val g = FaceGate(FaceGateConfig(reconfirmMs = 1000))
+        assertEquals(FaceVerdict.NONE, g.onFrame(0, none))
+        assertEquals(FaceVerdict.NONE, g.onFrame(900, none))
+        assertEquals(FaceVerdict.UNCONFIRMED, g.onFrame(1100, none))
+    }
+
+    @Test fun seeingTheOwnerRestartsTheReconfirmClock() {
+        val g = FaceGate(FaceGateConfig(reconfirmMs = 1000))
+        g.onFrame(0, none)
+        g.onFrame(800, owner)               // owner seen
+        assertEquals(FaceVerdict.NONE, g.onFrame(1700, none))          // 900 ms since the owner
+        assertEquals(FaceVerdict.UNCONFIRMED, g.onFrame(1900, none))   // 1100 ms since the owner
+    }
+
+    @Test fun strangerBeatsUnconfirmed() {
+        val g = FaceGate(FaceGateConfig(reconfirmMs = 1000))
+        g.onFrame(0, none)
+        g.onFrame(1500, stranger)
+        g.onFrame(1600, stranger)
+        assertEquals(FaceVerdict.STRANGER, g.onFrame(1700, stranger))
+    }
+
+    @Test fun reconfirmOffByDefault() {
+        val g = FaceGate()
+        g.onFrame(0, none)
+        assertEquals(FaceVerdict.NONE, g.onFrame(1_000_000, none))
+    }
+
+    @Test fun reconfirmCountsAnOwnerMatchEvenBeforeTheConfirmFrames() {
+        val g = FaceGate(FaceGateConfig(reconfirmMs = 1000))
+        g.onFrame(0, none)
+        g.onFrame(900, owner) // one matching frame is enough to refresh the clock
+        assertEquals(FaceVerdict.NONE, g.onFrame(1800, none))
+    }
 }

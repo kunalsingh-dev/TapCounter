@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,7 +60,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tapcounter.TapCounterApp
+import com.example.tapcounter.counter.CounterProfiles
 import com.example.tapcounter.counter.DisplayState
+import com.example.tapcounter.counter.StealthBrightness
 import com.example.tapcounter.data.MalaMath
 import com.example.tapcounter.data.MalaStats
 import com.example.tapcounter.data.Summary
@@ -75,6 +78,7 @@ fun CounterScreen(
     onOpenSettings: () -> Unit,
     onOpenHistory: () -> Unit,
     onOpenAnalytics: () -> Unit,
+    onOpenCounters: () -> Unit,
 ) {
     val view = LocalView.current
     val counter by app.counterStore.state.collectAsStateWithLifecycle()
@@ -83,15 +87,19 @@ fun CounterScreen(
     val baseline by app.counterStore.history.baseline.collectAsStateWithLifecycle()
     val malaRecords by app.counterStore.history.malas.collectAsStateWithLifecycle()
     val status by app.headsetController.status.collectAsStateWithLifecycle()
+    val activeId by app.counterStore.activeId.collectAsStateWithLifecycle()
+    val counters by app.counterStore.counters.collectAsStateWithLifecycle()
     val settings by app.headsetSettings.settings.collectAsStateWithLifecycle(initialValue = HeadsetSettings())
     var menuOpen by remember { mutableStateOf(false) }
 
     // Stealth: dimmest brightness (so a black screen doesn't glow) and hidden time/status bar.
-    DisposableEffect(counter.stealth, display.hideBars, display.stealthBrightnessPct) {
+    DisposableEffect(counter.stealth, display.hideBars, display.stealthBrightnessPct, display.disguise, display.lcdMode, display.disguiseBrightnessPct) {
         val window = view.context.findActivity()?.window
         val insets = window?.let { WindowCompat.getInsetsController(it, view) }
         if (counter.stealth) {
-            window?.setBrightness(display.stealthBrightnessPct.coerceIn(1, 100) / 100f)
+            window?.setBrightness(
+                StealthBrightness.pick(display.disguise, display.lcdMode, display.stealthBrightnessPct, display.disguiseBrightnessPct),
+            )
             if (display.hideBars) {
                 insets?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 insets?.hide(WindowInsetsCompat.Type.systemBars())
@@ -118,8 +126,11 @@ fun CounterScreen(
     }
 
     if (counter.stealth) {
-        // Pure black, nothing drawn. Tap = +1; 4-5 fingers held = leave stealth (calculator appears).
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black).then(gestures))
+        // Black, or a disguise (fake alarm, clock, update, charging). The disguise is only drawn: nothing on it
+        // can be tapped, so a tap anywhere counts +1; 4-5 fingers held = leave stealth (calculator appears).
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black).then(gestures)) {
+            DisguiseScreen(display.disguise)
+        }
         return
     }
 
@@ -130,7 +141,7 @@ fun CounterScreen(
     val bottom = if (customTheme) Color(display.customBottom) else lerp(theme.bottom0, theme.bottom1, progress)
     val summary = remember(days, baseline) { SummaryMath.compute(days, baseline, LocalDate.now().toString()) }
     val malaStats = remember(malaRecords) { MalaStats.summarize(malaRecords.map { it.seconds }) }
-    val godImage = remember(display.imageVersion) {
+    val godImage = remember(display.imageVersion, activeId) {
         BitmapFactory.decodeFile(app.counterStore.godImageFile.path)?.asImageBitmap()
     }
     val bgImage = remember(display.bgImageVersion) {
@@ -160,10 +171,20 @@ fun CounterScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text("नाम जप Counter", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                val activeName = counters.firstOrNull { it.id == activeId }?.name.orEmpty()
+                Text(
+                    "नाम जप Counter" + if (activeId != CounterProfiles.MAIN_ID && activeName.isNotEmpty()) " · $activeName" else "",
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
                 Box {
                     TextButton(onClick = { menuOpen = true }) { Text("⋮", color = Color.White, fontSize = 26.sp) }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(text = { Text("Counters") }, onClick = { menuOpen = false; onOpenCounters() })
                         DropdownMenuItem(text = { Text("History") }, onClick = { menuOpen = false; onOpenHistory() })
                         DropdownMenuItem(text = { Text("Analytics") }, onClick = { menuOpen = false; onOpenAnalytics() })
                         DropdownMenuItem(text = { Text("Settings") }, onClick = { menuOpen = false; onOpenSettings() })

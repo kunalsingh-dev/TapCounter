@@ -42,7 +42,7 @@ fun FaceGuard(app: TapCounterApp, paused: Boolean) {
     val active = !paused && display.faceUnlock && display.calcLock && cameraAllowed &&
         templates.isNotEmpty() && (locked || watching) && app.faceEngine.ready
 
-    DisposableEffect(active, locked, templates, display.faceThresholdPct, display.faceLockOnMultiple, display.faceRequireBlink) {
+    DisposableEffect(active, locked, templates, display.faceThresholdPct, display.faceLockOnMultiple, display.faceRequireBlink, display.faceReconfirmSec) {
         if (!active) return@DisposableEffect onDispose { }
 
         val gate = FaceGate(
@@ -50,6 +50,8 @@ fun FaceGuard(app: TapCounterApp, paused: Boolean) {
                 threshold = display.faceThresholdPct.coerceIn(30, 95) / 100f,
                 lockOnMultipleFaces = display.faceLockOnMultiple,
                 requireBlink = display.faceRequireBlink,
+                // Only while the counter is open: hide again if I have not been seen for a while.
+                reconfirmMs = if (locked) 0L else display.faceReconfirmSec * 1000L,
             ),
         )
         val main = Handler(Looper.getMainLooper())
@@ -58,7 +60,7 @@ fun FaceGuard(app: TapCounterApp, paused: Boolean) {
             val verdict = gate.onFrame(SystemClock.uptimeMillis(), frame.toObservation())
             if (locked && verdict == FaceVerdict.OWNER) {
                 main.post { app.counterStore.unlock() }
-            } else if (!locked && verdict == FaceVerdict.STRANGER) {
+            } else if (!locked && (verdict == FaceVerdict.STRANGER || verdict == FaceVerdict.UNCONFIRMED)) {
                 main.post { app.counterStore.lockNow() }
             }
         }

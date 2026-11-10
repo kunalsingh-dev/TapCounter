@@ -1,3 +1,7 @@
 <resources>
-    <string name="app_name">Tap Counter</string>
+    <!-- The app's own name (Settings > Apps, notifications) is neutral on purpose. -->
+    <string name="app_name">Calculator</string>
+    <string name="launcher_calculator">Calculator</string>
+    <string name="launcher_clock">Clock</string>
+    <string name="launcher_tap_counter">Tap Counter</string>
 </resources>

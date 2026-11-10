@@ -36,6 +36,8 @@ class HeadsetController(
     private val feedback = Feedback(context.applicationContext)
     private val volumeFilter = VolumeKeyFilter()
     private val tapLimiter = TapRateLimiter()
+    /** Keys whose press has started but whose release has not been seen. */
+    private val pressedKeys = HashSet<Int>()
 
     @Volatile
     private var settings = HeadsetSettings()
@@ -147,6 +149,17 @@ class HeadsetController(
         if (!known) return false
         if (settings.hardwareLock) return true // consumed, deliberately ignored
 
+        if (down) {
+            // Rapid taps: a NEW press (repeatCount 0) while the last one never reported its release
+            // means the headset skipped that release. Close the old press first so BOTH count.
+            if (settings.fastTaps && event.repeatCount == 0 && code in pressedKeys) {
+                dispatch(engine.onKey(code, false, now))
+            }
+            pressedKeys.add(code)
+        } else {
+            pressedKeys.remove(code)
+        }
+
         dispatch(engine.onKey(code, down, now))
         scheduleTick()
         return true
@@ -157,6 +170,7 @@ class HeadsetController(
         handler.removeCallbacks(volumeRunnable)
         engine.reset()
         volumeFilter.reset()
+        pressedKeys.clear()
     }
 
     fun release() {
