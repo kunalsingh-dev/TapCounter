@@ -42,7 +42,7 @@ android {
     buildFeatures { compose = true }
 
     // The face model is memory-mapped straight from the APK, so it must not be compressed.
-    androidResources { noCompress += "tflite" }
+    androidResources { noCompress.add("tflite") }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

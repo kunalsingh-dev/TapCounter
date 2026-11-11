@@ -37,7 +37,23 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}" "cmake;${CMAKE_VERSION}"
 
       - name: Kotlin unit tests
-        run: gradle :app:testDebugUnitTest --stacktrace
+        run: |
+          set -o pipefail
+          gradle :app:testDebugUnitTest --stacktrace --console=plain 2>&1 | tee gradle.log
+
+      - name: Show the Gradle error on the run page
+        if: failure()
+        run: |
+          msg=$(grep -E -A4 '^e: |error:|What went wrong|FAILED' gradle.log | head -25 | sed ':a;N;$!ba;s/\n/%0A/g' || true)
+          echo "::error title=Gradle error (tests)::${msg}"
+          { echo '### Gradle error (tests)'; echo '```'; grep -E -A6 '^e: |error:|What went wrong|FAILED' gradle.log | head -60 || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Gradle log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-log-tests
+          path: gradle.log
 
       - name: Upload test reports
         if: always()
@@ -66,7 +82,23 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;${NDK_VERSION}" "cmake;${CMAKE_VERSION}"
 
       - name: Build debug APK
-        run: gradle :app:assembleDebug --stacktrace
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug --stacktrace --console=plain 2>&1 | tee gradle.log
+
+      - name: Show the Gradle error on the run page
+        if: failure()
+        run: |
+          msg=$(grep -E -A4 '^e: |error:|What went wrong|FAILED' gradle.log | head -25 | sed ':a;N;$!ba;s/\n/%0A/g' || true)
+          echo "::error title=Gradle error (build)::${msg}"
+          { echo '### Gradle error (build)'; echo '```'; grep -E -A6 '^e: |error:|What went wrong|FAILED' gradle.log | head -60 || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Gradle log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-log-build
+          path: gradle.log
 
       - name: Name the APK
         run: cp app/build/outputs/apk/debug/app-debug.apk "TapCounter-build-${{ github.run_number }}.apk"
