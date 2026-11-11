@@ -84,21 +84,22 @@ fun CalculatorScreen(codes: List<CounterProfile>, onUnlock: (String) -> Unit, on
             .safeDrawingPadding()
             .padding(12.dp),
     ) {
-        val landscape = maxWidth > maxHeight * 1.2f
+        val availableHeight = maxHeight
+        val landscape = maxWidth > availableHeight * 1.2f
         if (landscape) {
             // Number on the left, keys on the right; five rows share the full height.
             val gap = 8.dp
-            val keyHeight = ((maxHeight - gap * 4) / 5).coerceIn(34.dp, 72.dp)
+            val keyHeight = ((availableHeight - gap * 4) / 5).coerceIn(34.dp, 72.dp)
             Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                DisplayBox(display, onBiometric, Modifier.weight(1f).fillMaxHeight(), maxHeight * 0.4f)
+                DisplayBox(display, onBiometric, Modifier.weight(1f).fillMaxHeight(), availableHeight * 0.4f)
                 Keypad(keyHeight, gap, { onKey(it) }, Modifier.weight(1.3f))
             }
         } else {
             val gap = 12.dp
             // Five rows must fit and the number keeps at least a third of the height.
-            val keyHeight = ((maxHeight * 0.62f - gap * 4) / 5).coerceIn(44.dp, 84.dp)
+            val keyHeight = ((availableHeight * 0.62f - gap * 4) / 5).coerceIn(44.dp, 84.dp)
             Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(gap)) {
-                DisplayBox(display, onBiometric, Modifier.weight(1f).fillMaxWidth(), maxHeight * 0.22f)
+                DisplayBox(display, onBiometric, Modifier.weight(1f).fillMaxWidth(), availableHeight * 0.22f)
                 Keypad(keyHeight, gap, { onKey(it) }, Modifier.fillMaxWidth())
             }
         }
