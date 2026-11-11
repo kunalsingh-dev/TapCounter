@@ -5,9 +5,11 @@ Counts with the screen, any Bluetooth headset button and the phone volume keys. 
 ## Deploy from your phone (Termux + GitHub Actions)
 1. Download the zip, then in Termux:
    ```
-   cd ~ && rm -rf final && mkdir final && unzip -oq ~/storage/downloads/TapCounter-FINAL2.zip -d final
-   bash ~/final/TC-FINAL2/deploy.sh
+   cd ~ && rm -rf final && mkdir final && unzip -oq ~/storage/downloads/TapCounter-FINAL3.zip -d final
+   bash ~/final/TC-FINAL3/deploy.sh
    ```
+   To deploy to a branch instead of main:  `BRANCH=my-branch bash ~/final/TC-FINAL3/deploy.sh`
+   If it cannot find your GitHub name:  `GH_USER=yourname bash ...`
 2. Paste a fresh GitHub token (classic, scopes **repo** + **workflow**) when asked, then delete it on GitHub.
 3. github.com/YOUR_USER/TapCounter/actions: wait ~10 min for the green tick.
 4. Releases > newest build > the .apk > install over the old app (same signing key, rising version number).

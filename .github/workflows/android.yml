@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [main]
+    branches: ['**']   # main or any branch you push to
   workflow_dispatch:
 
 permissions:
@@ -78,10 +78,10 @@ jobs:
           path: TapCounter-build-${{ github.run_number }}.apk
 
       - name: Publish APK as GitHub Release (download straight on your phone)
-        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: TapCounter build ${{ github.run_number }}
-          prerelease: false
+          target_commitish: ${{ github.sha }}
+          name: TapCounter build ${{ github.run_number }} (${{ github.ref_name }})
+          prerelease: ${{ github.ref != 'refs/heads/main' }}
           files: TapCounter-build-${{ github.run_number }}.apk
